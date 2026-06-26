@@ -200,6 +200,23 @@ header .sub { font-size: .72rem; color: #666; font-family: 'IBM Plex Mono', mono
   .toolbar input[type=text] { width: 100%; }
   #stats { margin-left: 0; }
 }
+
+/* ── Confirm modal ── */
+.confirm-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 300; display: flex; align-items: center; justify-content: center; padding: 20px; animation: fadeIn .15s ease; }
+@keyframes fadeIn { from { opacity:0 } to { opacity:1 } }
+.confirm-box { background: var(--card-bg); border-radius: 8px; width: 100%; max-width: 380px; box-shadow: 0 8px 32px rgba(0,0,0,.35); overflow: hidden; border: 1px solid var(--rule); animation: scaleIn .15s ease; }
+@keyframes scaleIn { from { transform: scale(.95); opacity:0 } to { transform: scale(1); opacity:1 } }
+.confirm-header { padding: 14px 18px 0; display: flex; align-items: center; gap: 10px; }
+.confirm-icon { font-size: 1.3rem; }
+.confirm-title { font-family: 'IBM Plex Mono', monospace; font-size: .9rem; font-weight: 600; color: var(--ink); }
+.confirm-body { padding: 10px 18px 16px; font-size: .85rem; color: var(--ink-muted); line-height: 1.5; }
+.confirm-footer { padding: 0 18px 16px; display: flex; gap: 8px; justify-content: flex-end; }
+.confirm-footer .btn-secondary { font-size: .82rem; padding: 7px 14px; }
+.btn-confirm-ok { border: none; border-radius: 4px; padding: 7px 16px; font-size: .82rem; font-weight: 600; cursor: pointer; font-family: 'Inter', sans-serif; transition: opacity .15s; }
+.btn-confirm-ok:hover { opacity: .85; }
+.btn-confirm-ok.danger { background: var(--danger); color: #fff; }
+.btn-confirm-ok.safe   { background: var(--amber); color: #0E0C0A; }
+
 </style>
 </head>
 <body>
@@ -267,6 +284,31 @@ let undoStack = [];
 let undoTimer = null;
 let dragItemId = null;
 let dragSourceBoxId = null;
+
+
+// ── Custom confirm dialog ──
+let confirmResolve = () => {};
+function showConfirm({ title, body, okLabel = 'Confirm', okClass = 'danger', icon = '⚠️' }) {
+  return new Promise(resolve => {
+    document.getElementById('confirmTitle').textContent = title;
+    document.getElementById('confirmBody').textContent = body;
+    document.getElementById('confirmIcon').textContent = icon;
+    const btn = document.getElementById('confirmOkBtn');
+    btn.textContent = okLabel;
+    btn.className = 'btn-confirm-ok ' + okClass;
+    document.getElementById('confirmModal').style.display = 'flex';
+    confirmResolve = (val) => {
+      document.getElementById('confirmModal').style.display = 'none';
+      resolve(val);
+    };
+  });
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    closeModal();
+    confirmResolve(false);
+  }
+});
 
 // ── Dark mode ──
 function toggleDark() {
@@ -360,6 +402,18 @@ async function saveBox() {
   const btn = document.getElementById('saveBoxBtn');
   btn.disabled = true; btn.textContent = 'Saving…';
   setSyncBadge('busy', '⟳ saving');
+  // Confirm if editing existing box
+  if (editingBoxId) {
+    const existing = catalogue.find(b => b.id === editingBoxId);
+    const ok = await showConfirm({
+      title: 'Save Box Changes',
+      body: `Rename "${existing.label}" to "${label}"?`,
+      okLabel: 'Save Changes',
+      okClass: 'safe',
+      icon: '✏️'
+    });
+    if (!ok) { btn.disabled = false; btn.textContent = 'Save Box'; return; }
+  }
   try {
     if (editingBoxId) {
       const old = catalogue.find(b => b.id === editingBoxId);
@@ -389,7 +443,14 @@ async function saveBox() {
 
 async function deleteBox(id) {
   const box = catalogue.find(b => b.id === id);
-  if (!confirm(`Delete box "${box.label}" and all its items?`)) return;
+  const ok = await showConfirm({
+    title: 'Delete Box',
+    body: `Delete "${box.label}" and all ${box.items.length} item(s) inside? This cannot be undone without using Undo.`,
+    okLabel: 'Delete Box',
+    okClass: 'danger',
+    icon: '🗑️'
+  });
+  if (!ok) return;
   const snapshot = { box: { label: box.label, note: box.note }, items: box.items };
   setSyncBadge('busy', '⟳ deleting');
   const { error } = await db.from('boxes').delete().eq('id', id);
@@ -450,6 +511,14 @@ async function saveEditItem(itemId, boxId) {
   if (!type) return;
   const old = catalogue.find(b => b.id === boxId)?.items.find(i => i.id === itemId);
   const oldSnap = { type: old.type, size: old.size, qty: old.qty };
+  const ok = await showConfirm({
+    title: 'Save Changes',
+    body: `Update "${oldSnap.type}" → "${type}", size: ${size||'—'}, qty: ${qty}?`,
+    okLabel: 'Save Changes',
+    okClass: 'safe',
+    icon: '✏️'
+  });
+  if (!ok) return;
   setSyncBadge('busy', '⟳ saving');
   const { error } = await db.from('box_items').update({ type, size, qty }).eq('id', itemId);
   if (error) { setSyncBadge('error', '✕ error'); alert(error.message); return; }
@@ -462,6 +531,14 @@ async function saveEditItem(itemId, boxId) {
 async function deleteItem(itemId, boxId) {
   const item = catalogue.find(b => b.id === boxId)?.items.find(i => i.id === itemId);
   const snap = { ...item };
+  const ok = await showConfirm({
+    title: 'Delete Item',
+    body: `Remove "${item.type}" (${item.size || 'no size'}, ×${item.qty}) from this box?`,
+    okLabel: 'Delete Item',
+    okClass: 'danger',
+    icon: '🗑️'
+  });
+  if (!ok) return;
   setSyncBadge('busy', '⟳ deleting');
   const { error } = await db.from('box_items').delete().eq('id', itemId);
   if (error) { setSyncBadge('error', '✕ error'); alert(error.message); return; }
@@ -615,5 +692,21 @@ document.addEventListener('keydown', e => { if (e.key==='Escape') closeModal(); 
 
 loadAll();
 </script>
+
+<!-- Confirm modal -->
+<div class="confirm-overlay" id="confirmModal" style="display:none">
+  <div class="confirm-box">
+    <div class="confirm-header">
+      <span class="confirm-icon" id="confirmIcon">⚠️</span>
+      <span class="confirm-title" id="confirmTitle">Are you sure?</span>
+    </div>
+    <div class="confirm-body" id="confirmBody"></div>
+    <div class="confirm-footer">
+      <button class="btn-secondary" onclick="confirmResolve(false)">Cancel</button>
+      <button class="btn-confirm-ok" id="confirmOkBtn" onclick="confirmResolve(true)">Confirm</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
