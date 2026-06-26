@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Storeroom Catalogue</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Inter:wght@400;500;600&display=swap');
+
+  :root {
+    --amber: #E8A020;
+    --amber-light: #FDF3E0;
+    --amber-dark: #B87800;
+    --ink: #1A1A1A;
+    --ink-muted: #555;
+    --rule: #D4C9B8;
+    --bg: #F5F2ED;
+    --card-bg: #FDFAF6;
+    --white: #fff;
+    --danger: #C0392B;
+    --danger-light: #FDEDEB;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+    padding-bottom: 60px;
+  }
+
+  header {
+    background: var(--ink);
+    color: var(--white);
+    padding: 18px 24px 16px;
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,.25);
+  }
+  header h1 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1.1rem;
+    font-weight: 600;
+    letter-spacing: .04em;
+    color: var(--amber);
+  }
+  header span.subtitle { font-size: .8rem; color: #888; font-family: 'IBM Plex Mono', monospace; }
+  .header-right { margin-left: auto; display: flex; gap: 10px; align-items: center; }
+  .sync-indicator {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: .72rem;
+    padding: 4px 10px;
+    border-radius: 3px;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .sync-indicator.ok    { background: #1a3a1a; color: #4ade80; }
+  .sync-indicator.busy  { background: #3a2e0a; color: var(--amber); }
+  .sync-indicator.error { background: #3a0a0a; color: #f87171; }
+
+  .btn-primary {
+    background: var(--amber); color: var(--ink);
+    border: none; padding: 8px 16px; font-size: .82rem; font-weight: 600;
+    cursor: pointer; border-radius: 4px; font-family: 'Inter', sans-serif;
+    transition: background .15s; white-space: nowrap;
+  }
+  .btn-primary:hover { background: var(--amber-dark); color: var(--white); }
+
+  .toolbar {
+    padding: 14px 24px; background: var(--white);
+    border-bottom: 1px solid var(--rule);
+    display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+  }
+  .toolbar input[type=text], .toolbar select {
+    border: 1px solid var(--rule); border-radius: 4px;
+    padding: 7px 12px; font-size: .83rem;
+    font-family: 'Inter', sans-serif; background: var(--bg); color: var(--ink); outline: none;
+  }
+  .toolbar input[type=text] { width: 220px; }
+  .toolbar input[type=text]:focus, .toolbar select:focus { border-color: var(--amber); }
+  #stats { font-family: 'IBM Plex Mono', monospace; font-size: .78rem; color: var(--ink-muted); margin-left: auto; white-space: nowrap; }
+
+  .export-bar {
+    padding: 10px 24px; background: var(--white);
+    border-bottom: 1px solid var(--rule);
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  }
+  .export-bar span { font-size: .8rem; color: var(--ink-muted); }
+  .btn-sm {
+    border: 1px solid var(--rule); background: none; border-radius: 4px;
+    padding: 5px 12px; font-size: .78rem; cursor: pointer;
+    color: var(--ink); font-family: 'Inter', sans-serif; transition: all .12s;
+  }
+  .btn-sm:hover { border-color: var(--amber); background: var(--amber-light); }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 20px; padding: 24px;
+  }
+
+  .box-card {
+    background: var(--card-bg);
+    border: 1.5px solid var(--rule);
+    border-top: 4px solid var(--amber);
+    border-radius: 6px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.07);
+    display: flex; flex-direction: column;
+    transition: box-shadow .15s;
+  }
+  .box-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,.12); }
+
+  .card-header {
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid var(--rule);
+    display: flex; align-items: flex-start; gap: 10px;
+  }
+  .box-id { font-family: 'IBM Plex Mono', monospace; font-size: 1.1rem; font-weight: 600; color: var(--ink); flex: 1; word-break: break-word; }
+  .box-note { font-size: .76rem; color: var(--ink-muted); margin-top: 3px; }
+  .card-actions { display: flex; gap: 6px; }
+  .btn-icon {
+    background: none; border: 1px solid var(--rule); border-radius: 4px;
+    cursor: pointer; padding: 4px 8px; font-size: .78rem; color: var(--ink-muted); transition: all .12s;
+  }
+  .btn-icon:hover { border-color: var(--amber); color: var(--amber-dark); }
+  .btn-icon.danger:hover { border-color: var(--danger); color: var(--danger); }
+
+  .items-list { padding: 12px 16px; flex: 1; }
+  .item-row {
+    display: grid; grid-template-columns: 1fr auto auto auto;
+    gap: 6px; align-items: center;
+    padding: 5px 0; border-bottom: 1px dashed var(--rule); font-size: .83rem;
+  }
+  .item-row:last-child { border-bottom: none; }
+  .item-type { font-weight: 500; }
+  .item-size {
+    font-family: 'IBM Plex Mono', monospace; font-size: .75rem;
+    background: var(--amber-light); color: var(--amber-dark);
+    padding: 2px 7px; border-radius: 3px; border: 1px solid #E8C870;
+  }
+  .item-qty { font-family: 'IBM Plex Mono', monospace; font-size: .78rem; color: var(--ink-muted); min-width: 32px; text-align: right; }
+  .btn-del-item { background: none; border: none; cursor: pointer; color: #ccc; font-size: .75rem; padding: 0 2px; transition: color .12s; }
+  .btn-del-item:hover { color: var(--danger); }
+
+  .add-item-row {
+    padding: 10px 16px 14px; border-top: 1px solid var(--rule);
+    display: flex; gap: 6px; flex-wrap: wrap; align-items: flex-end;
+  }
+  .add-item-row input, .add-item-row select {
+    border: 1px solid var(--rule); border-radius: 4px;
+    padding: 5px 9px; font-size: .8rem;
+    font-family: 'Inter', sans-serif; background: var(--bg); color: var(--ink); outline: none;
+  }
+  .add-item-row input:focus { border-color: var(--amber); }
+  .fi { display: flex; flex-direction: column; gap: 3px; }
+  .fi label { font-size: .7rem; color: var(--ink-muted); }
+  .fi input { width: 90px; }
+  .fi.type-fi input { width: 120px; }
+  .fi.qty-fi input { width: 60px; }
+  .btn-add-item {
+    background: var(--amber); border: none; border-radius: 4px;
+    padding: 6px 12px; font-size: .8rem; font-weight: 600;
+    cursor: pointer; color: var(--ink); align-self: flex-end; transition: background .12s;
+  }
+  .btn-add-item:hover { background: var(--amber-dark); color: var(--white); }
+  .empty-items { font-size: .78rem; color: var(--ink-muted); font-style: italic; padding: 6px 0 4px; }
+
+  .empty-state { grid-column: 1/-1; text-align: center; padding: 60px 20px; color: var(--ink-muted); }
+  .empty-state .big { font-size: 3rem; margin-bottom: 12px; }
+  .empty-state p { font-size: .9rem; margin-bottom: 20px; }
+
+  /* Loading skeleton */
+  .skeleton { background: linear-gradient(90deg, #e8e0d4 25%, #f0e8dc 50%, #e8e0d4 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 4px; }
+  @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+  .skeleton-card { height: 180px; border-radius: 6px; border-top: 4px solid var(--rule); }
+
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.5);
+    z-index: 200; display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  .modal { background: var(--white); border-radius: 8px; width: 100%; max-width: 440px; box-shadow: 0 8px 32px rgba(0,0,0,.2); overflow: hidden; }
+  .modal-header {
+    background: var(--ink); color: var(--white); padding: 16px 20px;
+    font-family: 'IBM Plex Mono', monospace; font-size: .95rem; font-weight: 600;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .modal-header span { color: var(--amber); }
+  .btn-close { background: none; border: none; color: #888; font-size: 1.2rem; cursor: pointer; line-height: 1; }
+  .btn-close:hover { color: var(--white); }
+  .modal-body { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+  .form-field { display: flex; flex-direction: column; gap: 5px; }
+  .form-field label { font-size: .8rem; font-weight: 600; color: var(--ink-muted); text-transform: uppercase; letter-spacing: .04em; }
+  .form-field input, .form-field textarea {
+    border: 1.5px solid var(--rule); border-radius: 4px; padding: 9px 12px;
+    font-size: .9rem; font-family: 'Inter', sans-serif; color: var(--ink); outline: none; transition: border-color .15s;
+  }
+  .form-field input:focus, .form-field textarea:focus { border-color: var(--amber); }
+  .form-field textarea { resize: vertical; min-height: 60px; }
+  .modal-footer { padding: 0 20px 20px; display: flex; gap: 10px; justify-content: flex-end; }
+  .btn-secondary {
+    background: none; border: 1.5px solid var(--rule); border-radius: 4px;
+    padding: 8px 16px; font-size: .85rem; cursor: pointer;
+    color: var(--ink-muted); font-family: 'Inter', sans-serif;
+  }
+  .btn-secondary:hover { border-color: var(--ink); color: var(--ink); }
+
+  @media (max-width: 600px) {
+    .grid { padding: 14px; gap: 14px; }
+    .toolbar input[type=text] { width: 100%; }
+    #stats { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📦 STOREROOM</h1>
+  <span class="subtitle">Clothes Catalogue</span>
+  <div class="header-right">
+    <div class="sync-indicator busy" id="syncBadge">⟳ connecting</div>
+    <button class="btn-primary" onclick="openAddBoxModal()">+ Add Box</button>
+  </div>
+</header>
+
+<div class="toolbar">
+  <input type="text" id="searchInput" placeholder="Search box label or clothing type…" oninput="renderGrid()">
+  <select id="typeFilter" onchange="renderGrid()"><option value="">All clothing types</option></select>
+  <select id="sizeFilter" onchange="renderGrid()"><option value="">All sizes</option></select>
+  <span id="stats"></span>
+</div>
+
+<div class="export-bar">
+  <span>Export:</span>
+  <button class="btn-sm" onclick="exportCSV()">CSV</button>
+</div>
+
+<div class="grid" id="grid">
+  <div class="skeleton skeleton-card"></div>
+  <div class="skeleton skeleton-card"></div>
+  <div class="skeleton skeleton-card"></div>
+</div>
+
+<div class="modal-overlay" id="boxModal" style="display:none">
+  <div class="modal">
+    <div class="modal-header">
+      <span id="modalTitle">NEW BOX</span>
+      <button class="btn-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-field">
+        <label>Box Label / ID</label>
+        <input type="text" id="boxLabelInput" placeholder="e.g. BOX-01, Shelf A-3, Summer Tops…">
+      </div>
+      <div class="form-field">
+        <label>Notes (optional)</label>
+        <textarea id="boxNoteInput" placeholder="e.g. Donated items, back of storeroom…"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" id="saveBoxBtn" onclick="saveBox()">Save Box</button>
+    </div>
+  </div>
+</div>
+
+<datalist id="typesList"></datalist>
+
+<script>
+const SUPABASE_URL = 'https://dhpxlmksyctpafcfdpit.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRocHhsbWtzeWN0cGFmY2ZkcGl0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcwNzYyNjksImV4cCI6MjA5MjY1MjI2OX0.e579iivRW_me6j0a7n84a3yQ2gaTYdCrk_Oet1YfuFg';
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ── State ──
+let catalogue = []; // [{...box, items:[...]}]
+let editingBoxId = null;
+
+// ── Sync badge ──
+function setSyncBadge(state, text) {
+  const el = document.getElementById('syncBadge');
+  el.className = 'sync-indicator ' + state;
+  el.textContent = text;
+}
+
+// ── Load all data ──
+async function loadAll() {
+  setSyncBadge('busy', '⟳ loading');
+  try {
+    const { data: boxes, error: e1 } = await db.from('boxes').select('*').order('created_at');
+    if (e1) throw e1;
+    const { data: items, error: e2 } = await db.from('box_items').select('*').order('created_at');
+    if (e2) throw e2;
+
+    catalogue = boxes.map(box => ({
+      ...box,
+      items: items.filter(i => i.box_id === box.id)
+    }));
+    setSyncBadge('ok', '✓ synced');
+    renderGrid();
+  } catch (err) {
+    setSyncBadge('error', '✕ offline');
+    console.error(err);
+  }
+}
+
+// ── Modal ──
+function openAddBoxModal() {
+  editingBoxId = null;
+  document.getElementById('modalTitle').textContent = 'NEW BOX';
+  document.getElementById('boxLabelInput').value = '';
+  document.getElementById('boxNoteInput').value = '';
+  document.getElementById('boxModal').style.display = 'flex';
+  setTimeout(() => document.getElementById('boxLabelInput').focus(), 50);
+}
+
+function openEditBoxModal(id) {
+  const box = catalogue.find(b => b.id === id);
+  if (!box) return;
+  editingBoxId = id;
+  document.getElementById('modalTitle').textContent = 'EDIT BOX';
+  document.getElementById('boxLabelInput').value = box.label;
+  document.getElementById('boxNoteInput').value = box.note || '';
+  document.getElementById('boxModal').style.display = 'flex';
+  setTimeout(() => document.getElementById('boxLabelInput').focus(), 50);
+}
+
+function closeModal() {
+  document.getElementById('boxModal').style.display = 'none';
+}
+
+async function saveBox() {
+  const label = document.getElementById('boxLabelInput').value.trim();
+  if (!label) { document.getElementById('boxLabelInput').focus(); return; }
+  const note = document.getElementById('boxNoteInput').value.trim();
+  const btn = document.getElementById('saveBoxBtn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  setSyncBadge('busy', '⟳ saving');
+  try {
+    if (editingBoxId) {
+      const { error } = await db.from('boxes').update({ label, note }).eq('id', editingBoxId);
+      if (error) throw error;
+    } else {
+      const { error } = await db.from('boxes').insert({ label, note });
+      if (error) throw error;
+    }
+    closeModal();
+    await loadAll();
+  } catch (err) {
+    setSyncBadge('error', '✕ error');
+    alert('Error saving box: ' + err.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Save Box';
+  }
+}
+
+async function deleteBox(id) {
+  const box = catalogue.find(b => b.id === id);
+  if (!confirm(`Delete box "${box.label}" and all its items?`)) return;
+  setSyncBadge('busy', '⟳ deleting');
+  const { error } = await db.from('boxes').delete().eq('id', id);
+  if (error) { setSyncBadge('error', '✕ error'); alert(error.message); return; }
+  await loadAll();
+}
+
+// ── Items ──
+async function addItem(boxId) {
+  const typeEl = document.getElementById('type_' + boxId);
+  const sizeEl = document.getElementById('size_' + boxId);
+  const qtyEl  = document.getElementById('qty_'  + boxId);
+  const type = typeEl.value.trim();
+  const size = sizeEl.value.trim();
+  const qty  = parseInt(qtyEl.value) || 1;
+  if (!type) { typeEl.focus(); return; }
+  setSyncBadge('busy', '⟳ saving');
+  const { error } = await db.from('box_items').insert({ box_id: boxId, type, size, qty });
+  if (error) { setSyncBadge('error', '✕ error'); alert(error.message); return; }
+  typeEl.value = ''; sizeEl.value = ''; qtyEl.value = '1';
+  await loadAll();
+  setTimeout(() => { const el = document.getElementById('type_' + boxId); if (el) el.focus(); }, 50);
+}
+
+async function deleteItem(itemId) {
+  setSyncBadge('busy', '⟳ deleting');
+  const { error } = await db.from('box_items').delete().eq('id', itemId);
+  if (error) { setSyncBadge('error', '✕ error'); alert(error.message); return; }
+  await loadAll();
+}
+
+// ── Render ──
+function getAllTypes() {
+  const s = new Set();
+  catalogue.forEach(b => b.items.forEach(i => { if (i.type) s.add(i.type); }));
+  return [...s].sort();
+}
+function getAllSizes() {
+  const s = new Set();
+  catalogue.forEach(b => b.items.forEach(i => { if (i.size) s.add(i.size); }));
+  return [...s].sort();
+}
+
+function renderGrid() {
+  const q  = document.getElementById('searchInput').value.trim().toLowerCase();
+  const tf = document.getElementById('typeFilter').value.toLowerCase();
+  const sf = document.getElementById('sizeFilter').value.toLowerCase();
+
+  // Update filter dropdowns
+  const typeFilter = document.getElementById('typeFilter');
+  const sizeFilter = document.getElementById('sizeFilter');
+  const prevType = typeFilter.value, prevSize = sizeFilter.value;
+  typeFilter.innerHTML = '<option value="">All clothing types</option>';
+  getAllTypes().forEach(t => {
+    const o = document.createElement('option');
+    o.value = t; o.textContent = t;
+    if (t === prevType) o.selected = true;
+    typeFilter.appendChild(o);
+  });
+  sizeFilter.innerHTML = '<option value="">All sizes</option>';
+  getAllSizes().forEach(s => {
+    const o = document.createElement('option');
+    o.value = s; o.textContent = s;
+    if (s === prevSize) o.selected = true;
+    sizeFilter.appendChild(o);
+  });
+
+  // Autocomplete datalist
+  const dl = document.getElementById('typesList');
+  dl.innerHTML = getAllTypes().map(t => `<option value="${esc(t)}">`).join('');
+
+  let boxes = catalogue.filter(box => {
+    const matchLabel = box.label.toLowerCase().includes(q);
+    const matchItems = box.items.some(i => i.type.toLowerCase().includes(q) || (i.size||'').toLowerCase().includes(q));
+    if (q && !matchLabel && !matchItems) return false;
+    if (tf && !box.items.some(i => i.type.toLowerCase() === tf)) return false;
+    if (sf && !box.items.some(i => (i.size||'').toLowerCase() === sf)) return false;
+    return true;
+  });
+
+  const totalItems = catalogue.reduce((s, b) => s + b.items.reduce((a, i) => a + i.qty, 0), 0);
+  document.getElementById('stats').textContent = `${catalogue.length} boxes · ${totalItems} items total`;
+
+  const grid = document.getElementById('grid');
+  if (boxes.length === 0) {
+    grid.innerHTML = `<div class="empty-state">
+      <div class="big">📦</div>
+      <p>${catalogue.length === 0 ? 'No boxes yet. Add your first box to get started.' : 'No boxes match your search.'}</p>
+      ${catalogue.length === 0 ? `<button class="btn-primary" onclick="openAddBoxModal()">+ Add First Box</button>` : ''}
+    </div>`;
+    return;
+  }
+
+  grid.innerHTML = boxes.map(box => {
+    const itemRows = box.items.length === 0
+      ? `<p class="empty-items">No items yet — add one below.</p>`
+      : box.items.map(item => `
+        <div class="item-row">
+          <span class="item-type">${esc(item.type)}</span>
+          <span class="item-size">${esc(item.size || '—')}</span>
+          <span class="item-qty">×${item.qty}</span>
+          <button class="btn-del-item" title="Remove item" onclick="deleteItem('${item.id}')">✕</button>
+        </div>`).join('');
+
+    return `<div class="box-card">
+      <div class="card-header">
+        <div>
+          <div class="box-id">${esc(box.label)}</div>
+          ${box.note ? `<div class="box-note">${esc(box.note)}</div>` : ''}
+        </div>
+        <div class="card-actions">
+          <button class="btn-icon" onclick="openEditBoxModal('${box.id}')" title="Edit box">✎</button>
+          <button class="btn-icon danger" onclick="deleteBox('${box.id}')" title="Delete box">🗑</button>
+        </div>
+      </div>
+      <div class="items-list">${itemRows}</div>
+      <div class="add-item-row">
+        <div class="fi type-fi">
+          <label>Clothing type</label>
+          <input type="text" id="type_${box.id}" placeholder="e.g. T-shirts" list="typesList"
+            onkeydown="if(event.key==='Enter')addItem('${box.id}')">
+        </div>
+        <div class="fi">
+          <label>Size</label>
+          <input type="text" id="size_${box.id}" placeholder="M / 12 / 32W…"
+            onkeydown="if(event.key==='Enter')addItem('${box.id}')">
+        </div>
+        <div class="fi qty-fi">
+          <label>Qty</label>
+          <input type="number" id="qty_${box.id}" value="1" min="1"
+            onkeydown="if(event.key==='Enter')addItem('${box.id}')">
+        </div>
+        <button class="btn-add-item" onclick="addItem('${box.id}')">Add</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function esc(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Export ──
+function exportCSV() {
+  const rows = [['Box Label','Box Notes','Clothing Type','Size','Quantity']];
+  catalogue.forEach(box => {
+    if (box.items.length === 0) {
+      rows.push([box.label, box.note || '', '', '', '']);
+    } else {
+      box.items.forEach(item => rows.push([box.label, box.note || '', item.type, item.size || '', item.qty]));
+    }
+  });
+  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
+  a.download = 'storeroom_catalogue.csv'; a.click();
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+loadAll();
+</script>
+</body>
+</html>
