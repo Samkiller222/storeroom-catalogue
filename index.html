@@ -691,6 +691,40 @@ document.addEventListener('keydown', e => { if (e.key==='Escape') closeModal(); 
 })();
 
 loadAll();
+
+// ── Realtime sync ──
+// Ignore updates triggered by this tab to avoid double-reloads
+let localOp = false;
+
+function wrapLocal(fn) {
+  return async (...args) => {
+    localOp = true;
+    await fn(...args);
+    setTimeout(() => { localOp = false; }, 1000);
+  };
+}
+
+// Wrap all mutating functions so we can flag local ops
+const _addItem     = addItem;     addItem     = wrapLocal(_addItem);
+const _saveBox     = saveBox;     saveBox     = wrapLocal(_saveBox);
+const _deleteBox   = deleteBox;   deleteBox   = wrapLocal(_deleteBox);
+const _deleteItem  = deleteItem;  deleteItem  = wrapLocal(_deleteItem);
+const _saveEditItem = saveEditItem; saveEditItem = wrapLocal(_saveEditItem);
+const _onBoxDrop   = onBoxDrop;   onBoxDrop   = wrapLocal(_onBoxDrop);
+
+db.channel('catalogue-changes')
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'boxes' },     () => { if (!localOp) loadAll(); })
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'box_items' }, () => { if (!localOp) loadAll(); })
+  .subscribe((status) => {
+    if (status === 'SUBSCRIBED') {
+      setSyncBadge('ok', '✓ live');
+    } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+      setSyncBadge('error', '✕ disconnected');
+    } else if (status === 'CLOSED') {
+      setSyncBadge('busy', '⟳ reconnecting');
+    }
+  });
+
 </script>
 
 <!-- Confirm modal -->
