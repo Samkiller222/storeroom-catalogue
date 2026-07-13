@@ -38,21 +38,87 @@
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--ink); min-height: 100vh; padding-bottom: 80px; transition: background .2s, color .2s; }
+body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--ink); min-height: 100vh; transition: background .2s, color .2s; }
+
+/* ── Auth screen ── */
+#authScreen {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.auth-card {
+  background: var(--card-bg); border: 1.5px solid var(--rule);
+  border-top: 4px solid var(--amber); border-radius: 8px;
+  width: 100%; max-width: 380px;
+  box-shadow: 0 4px 24px var(--shadow);
+}
+.auth-logo {
+  padding: 28px 28px 0;
+  font-family: 'IBM Plex Mono', monospace;
+}
+.auth-logo h1 { font-size: 1.2rem; font-weight: 600; color: var(--amber); letter-spacing: .05em; }
+.auth-logo p  { font-size: .75rem; color: var(--ink-muted); margin-top: 2px; }
+.auth-tabs {
+  display: flex; margin: 20px 28px 0; border-bottom: 1px solid var(--rule);
+}
+.auth-tab {
+  padding: 8px 16px; font-size: .83rem; font-weight: 600; cursor: pointer;
+  border: none; background: none; color: var(--ink-muted);
+  border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all .15s;
+  font-family: 'Inter', sans-serif;
+}
+.auth-tab.active { color: var(--amber-dark); border-bottom-color: var(--amber); }
+[data-theme="dark"] .auth-tab.active { color: var(--amber); }
+.auth-body { padding: 20px 28px 28px; display: flex; flex-direction: column; gap: 14px; }
+.auth-field { display: flex; flex-direction: column; gap: 5px; }
+.auth-field label { font-size: .75rem; font-weight: 600; color: var(--ink-muted); text-transform: uppercase; letter-spacing: .04em; }
+.auth-field input {
+  border: 1.5px solid var(--rule); border-radius: 5px; padding: 10px 12px;
+  font-size: .9rem; font-family: 'Inter', sans-serif; color: var(--ink);
+  background: var(--bg); outline: none; transition: border-color .15s;
+}
+.auth-field input:focus { border-color: var(--amber); }
+.auth-submit {
+  background: var(--amber); color: #0E0C0A; border: none; border-radius: 5px;
+  padding: 11px; font-size: .9rem; font-weight: 600; cursor: pointer;
+  font-family: 'Inter', sans-serif; transition: opacity .15s; margin-top: 4px;
+}
+.auth-submit:hover { opacity: .85; }
+.auth-submit:disabled { opacity: .5; cursor: default; }
+.auth-error {
+  background: var(--danger); color: #fff; border-radius: 4px;
+  padding: 9px 12px; font-size: .8rem; display: none;
+}
+.auth-success {
+  background: #0d2b0d; color: #4ade80; border-radius: 4px;
+  padding: 9px 12px; font-size: .8rem; display: none;
+  font-family: 'IBM Plex Mono', monospace;
+}
+.auth-footer-note { font-size: .73rem; color: var(--ink-muted); text-align: center; }
+.auth-dark-toggle {
+  position: absolute; top: 16px; right: 16px;
+  background: none; border: 1px solid var(--rule); border-radius: 4px;
+  padding: 5px 9px; cursor: pointer; font-size: .85rem; color: var(--ink-muted);
+}
+.auth-dark-toggle:hover { border-color: var(--amber); }
+
+/* ── App (hidden until authed) ── */
+#appScreen { display: none; padding-bottom: 80px; }
 
 /* ── Header ── */
 header {
-  background: #0E0C0A;
-  color: #fff;
-  padding: 14px 20px;
-  display: flex; align-items: center; gap: 12px;
-  position: sticky; top: 0; z-index: 100;
-  box-shadow: 0 2px 10px rgba(0,0,0,.4);
+  background: #0E0C0A; color: #fff;
+  padding: 14px 20px; display: flex; align-items: center; gap: 12px;
+  position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,.4);
 }
 [data-theme="dark"] header { background: #0A0806; }
 header h1 { font-family: 'IBM Plex Mono', monospace; font-size: 1rem; font-weight: 600; letter-spacing: .05em; color: var(--amber); }
 header .sub { font-size: .72rem; color: #666; font-family: 'IBM Plex Mono', monospace; }
 .header-right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.user-chip {
+  font-family: 'IBM Plex Mono', monospace; font-size: .7rem;
+  background: #1a1410; border: 1px solid #333; border-radius: 3px;
+  padding: 3px 9px; color: #aaa; max-width: 160px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 
 .sync-badge { font-family: 'IBM Plex Mono', monospace; font-size: .7rem; padding: 3px 9px; border-radius: 3px; display: flex; align-items: center; gap: 4px; }
 .sync-badge.ok    { background: #0d2b0d; color: #4ade80; }
@@ -62,13 +128,14 @@ header .sub { font-size: .72rem; color: #666; font-family: 'IBM Plex Mono', mono
 .btn-primary { background: var(--amber); color: #0E0C0A; border: none; padding: 7px 14px; font-size: .8rem; font-weight: 600; cursor: pointer; border-radius: 4px; font-family: 'Inter', sans-serif; transition: opacity .15s; white-space: nowrap; }
 .btn-primary:hover { opacity: .85; }
 .btn-primary:disabled { opacity: .5; cursor: default; }
-
 .btn-icon-hdr { background: none; border: 1px solid #333; border-radius: 4px; cursor: pointer; padding: 5px 9px; font-size: .8rem; color: #aaa; transition: all .12s; }
 .btn-icon-hdr:hover { border-color: var(--amber); color: var(--amber); }
+.btn-signout { background: none; border: 1px solid #333; border-radius: 4px; cursor: pointer; padding: 5px 9px; font-size: .75rem; color: #888; font-family: 'Inter', sans-serif; transition: all .12s; }
+.btn-signout:hover { border-color: var(--danger); color: var(--danger); }
 
 /* ── Undo bar ── */
 #undoBar {
-  display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
   background: #0E0C0A; color: #fff; border-radius: 6px; padding: 10px 18px;
   display: none; align-items: center; gap: 14px; z-index: 500;
   box-shadow: 0 4px 20px rgba(0,0,0,.4); font-size: .83rem;
@@ -94,13 +161,7 @@ header .sub { font-size: .72rem; color: #666; font-family: 'IBM Plex Mono', mono
 /* ── Grid ── */
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 18px; padding: 20px; }
 
-/* ── Box card ── */
-.box-card {
-  background: var(--card-bg); border: 1.5px solid var(--rule);
-  border-top: 4px solid var(--amber); border-radius: 6px;
-  box-shadow: 0 1px 5px var(--shadow); display: flex; flex-direction: column;
-  transition: box-shadow .15s, border-color .15s;
-}
+.box-card { background: var(--card-bg); border: 1.5px solid var(--rule); border-top: 4px solid var(--amber); border-radius: 6px; box-shadow: 0 1px 5px var(--shadow); display: flex; flex-direction: column; transition: box-shadow .15s, border-color .15s; }
 .box-card:hover { box-shadow: 0 4px 16px var(--shadow-hover); }
 .box-card.drag-over { border-color: var(--amber); box-shadow: 0 0 0 2px var(--amber); }
 
@@ -112,25 +173,15 @@ header .sub { font-size: .72rem; color: #666; font-family: 'IBM Plex Mono', mono
 .btn-icon:hover { border-color: var(--amber); color: var(--amber-dark); }
 .btn-icon.danger:hover { border-color: var(--danger); color: var(--danger); }
 
-/* ── Items ── */
 .items-list { padding: 8px 14px; flex: 1; min-height: 40px; }
 .empty-items { font-size: .75rem; color: var(--ink-muted); font-style: italic; padding: 6px 0; }
 
-.item-row {
-  display: grid; grid-template-columns: 16px 1fr auto auto auto auto;
-  gap: 5px; align-items: center;
-  padding: 5px 0; border-bottom: 1px dashed var(--rule); font-size: .82rem;
-  cursor: grab; transition: background .1s; border-radius: 3px;
-}
+.item-row { display: grid; grid-template-columns: 16px 1fr auto auto auto auto; gap: 5px; align-items: center; padding: 5px 0; border-bottom: 1px dashed var(--rule); font-size: .82rem; cursor: grab; transition: background .1s; border-radius: 3px; }
 .item-row:last-child { border-bottom: none; }
 .item-row:active { cursor: grabbing; }
 .item-row.dragging { opacity: .4; }
-.item-row.drag-target-above { border-top: 2px solid var(--amber); }
-
 .drag-handle { color: var(--rule); font-size: .75rem; cursor: grab; user-select: none; text-align: center; }
-[data-theme="dark"] .drag-handle { color: #444; }
 .item-row:hover .drag-handle { color: var(--ink-muted); }
-
 .item-type-display { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .item-size-badge { font-family: 'IBM Plex Mono', monospace; font-size: .72rem; background: var(--amber-light); color: var(--amber-dark); padding: 1px 6px; border-radius: 3px; border: 1px solid var(--rule); white-space: nowrap; }
 .item-qty-display { font-family: 'IBM Plex Mono', monospace; font-size: .75rem; color: var(--ink-muted); min-width: 28px; text-align: right; }
@@ -139,23 +190,13 @@ header .sub { font-size: .72rem; color: #666; font-family: 'IBM Plex Mono', mono
 .btn-del-item { background: none; border: none; cursor: pointer; color: #bbb; font-size: .72rem; padding: 0 2px; transition: color .12s; }
 .btn-del-item:hover { color: var(--danger); }
 
-/* Inline edit row */
-.item-edit-row {
-  display: grid; grid-template-columns: 16px 1fr auto auto auto auto;
-  gap: 5px; align-items: center; padding: 4px 0;
-  border-bottom: 1px dashed var(--rule); font-size: .82rem;
-}
+.item-edit-row { display: grid; grid-template-columns: 16px 1fr auto auto auto auto; gap: 5px; align-items: center; padding: 4px 0; border-bottom: 1px dashed var(--rule); font-size: .82rem; }
 .item-edit-row:last-child { border-bottom: none; }
-.item-edit-row input {
-  border: 1px solid var(--amber); border-radius: 3px; padding: 3px 6px;
-  font-size: .78rem; font-family: 'Inter', sans-serif;
-  background: var(--bg); color: var(--ink); outline: none; width: 100%;
-}
+.item-edit-row input { border: 1px solid var(--amber); border-radius: 3px; padding: 3px 6px; font-size: .78rem; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--ink); outline: none; width: 100%; }
 .item-edit-row input.qty-input { width: 52px; text-align: center; }
 .btn-save-item { background: var(--amber); border: none; border-radius: 3px; padding: 3px 8px; font-size: .72rem; font-weight: 600; cursor: pointer; color: #0E0C0A; }
 .btn-cancel-item { background: none; border: 1px solid var(--rule); border-radius: 3px; padding: 3px 6px; font-size: .72rem; cursor: pointer; color: var(--ink-muted); }
 
-/* Add item row */
 .add-item-row { padding: 8px 14px 12px; border-top: 1px solid var(--rule); display: flex; gap: 5px; flex-wrap: wrap; align-items: flex-end; }
 .fi { display: flex; flex-direction: column; gap: 2px; }
 .fi label { font-size: .67rem; color: var(--ink-muted); text-transform: uppercase; letter-spacing: .04em; }
@@ -167,17 +208,15 @@ header .sub { font-size: .72rem; color: #666; font-family: 'IBM Plex Mono', mono
 .btn-add-item { background: var(--amber); border: none; border-radius: 4px; padding: 5px 11px; font-size: .78rem; font-weight: 600; cursor: pointer; color: #0E0C0A; align-self: flex-end; transition: opacity .12s; }
 .btn-add-item:hover { opacity: .85; }
 
-/* ── Empty state ── */
 .empty-state { grid-column: 1/-1; text-align: center; padding: 60px 20px; color: var(--ink-muted); }
 .empty-state .big { font-size: 3rem; margin-bottom: 12px; }
 .empty-state p { font-size: .88rem; margin-bottom: 18px; }
 
-/* ── Skeleton ── */
 .skeleton { background: linear-gradient(90deg, var(--rule) 25%, var(--card-bg) 50%, var(--rule) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 6px; border-top: 4px solid var(--rule); }
 .skeleton-card { height: 180px; }
 @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
 
-/* ── Modal ── */
+/* ── Modals ── */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 20px; }
 .modal { background: var(--card-bg); border-radius: 8px; width: 100%; max-width: 430px; box-shadow: 0 8px 32px rgba(0,0,0,.3); overflow: hidden; border: 1px solid var(--rule); }
 .modal-header { background: #0E0C0A; color: #fff; padding: 14px 18px; font-family: 'IBM Plex Mono', monospace; font-size: .9rem; font-weight: 600; display: flex; align-items: center; justify-content: space-between; }
@@ -195,12 +234,6 @@ header .sub { font-size: .72rem; color: #666; font-family: 'IBM Plex Mono', mono
 .btn-secondary { background: none; border: 1.5px solid var(--rule); border-radius: 4px; padding: 7px 14px; font-size: .82rem; cursor: pointer; color: var(--ink-muted); font-family: 'Inter', sans-serif; }
 .btn-secondary:hover { border-color: var(--ink); color: var(--ink); }
 
-@media (max-width: 600px) {
-  .grid { padding: 12px; gap: 12px; }
-  .toolbar input[type=text] { width: 100%; }
-  #stats { margin-left: 0; }
-}
-
 /* ── Confirm modal ── */
 .confirm-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 300; display: flex; align-items: center; justify-content: center; padding: 20px; animation: fadeIn .15s ease; }
 @keyframes fadeIn { from { opacity:0 } to { opacity:1 } }
@@ -217,41 +250,87 @@ header .sub { font-size: .72rem; color: #666; font-family: 'IBM Plex Mono', mono
 .btn-confirm-ok.danger { background: var(--danger); color: #fff; }
 .btn-confirm-ok.safe   { background: var(--amber); color: #0E0C0A; }
 
+@media (max-width: 600px) {
+  .grid { padding: 12px; gap: 12px; }
+  .toolbar input[type=text] { width: 100%; }
+  #stats { margin-left: 0; }
+  .user-chip { display: none; }
+}
 </style>
 </head>
 <body>
 
-<header>
-  <h1>📦 STOREROOM</h1>
-  <span class="sub">Catalogue</span>
-  <div class="header-right">
-    <div class="sync-badge busy" id="syncBadge">⟳ connecting</div>
-    <button class="btn-icon-hdr" id="darkToggle" title="Toggle dark mode" onclick="toggleDark()">🌙</button>
-    <button class="btn-primary" onclick="openAddBoxModal()">+ Add Box</button>
+<!-- ── Auth screen ── -->
+<div id="authScreen">
+  <button class="auth-dark-toggle" onclick="toggleDark()" id="authDarkBtn">🌙</button>
+  <div class="auth-card">
+    <div class="auth-logo">
+      <h1>📦 STOREROOM</h1>
+      <p>Clothes Catalogue</p>
+    </div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tabLogin"  onclick="switchTab('login')">Sign In</button>
+      <button class="auth-tab"        id="tabSignup" onclick="switchTab('signup')">Create Account</button>
+    </div>
+    <div class="auth-body">
+      <div class="auth-error"  id="authError"></div>
+      <div class="auth-success" id="authSuccess"></div>
+
+      <div class="auth-field">
+        <label>Email</label>
+        <input type="email" id="authEmail" placeholder="you@example.com" autocomplete="email">
+      </div>
+      <div class="auth-field">
+        <label>Password</label>
+        <input type="password" id="authPassword" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <div class="auth-field" id="confirmPasswordField" style="display:none">
+        <label>Confirm Password</label>
+        <input type="password" id="authConfirmPassword" placeholder="••••••••" autocomplete="new-password">
+      </div>
+
+      <button class="auth-submit" id="authSubmitBtn" onclick="handleAuth()">Sign In</button>
+      <p class="auth-footer-note" id="authNote">Shared catalogue — all signed-in users see the same data.</p>
+    </div>
   </div>
-</header>
-
-<div class="toolbar">
-  <input type="text" id="searchInput" placeholder="Search boxes or clothing…" oninput="renderGrid()">
-  <select id="typeFilter" onchange="renderGrid()"><option value="">All types</option></select>
-  <select id="sizeFilter" onchange="renderGrid()"><option value="">All sizes</option></select>
-  <span id="stats"></span>
 </div>
 
-<div class="export-bar">
-  <span>Export:</span>
-  <button class="btn-sm" onclick="exportCSV()">CSV</button>
-</div>
+<!-- ── App screen ── -->
+<div id="appScreen">
+  <header>
+    <h1>📦 STOREROOM</h1>
+    <span class="sub">Catalogue</span>
+    <div class="header-right">
+      <div class="sync-badge busy" id="syncBadge">⟳ connecting</div>
+      <span class="user-chip" id="userChip"></span>
+      <button class="btn-icon-hdr" id="darkToggle" onclick="toggleDark()">🌙</button>
+      <button class="btn-signout" onclick="signOut()">Sign out</button>
+      <button class="btn-primary" onclick="openAddBoxModal()">+ Add Box</button>
+    </div>
+  </header>
 
-<div class="grid" id="grid">
-  <div class="skeleton skeleton-card"></div>
-  <div class="skeleton skeleton-card"></div>
-  <div class="skeleton skeleton-card"></div>
+  <div class="toolbar">
+    <input type="text" id="searchInput" placeholder="Search boxes or clothing…" oninput="renderGrid()">
+    <select id="typeFilter" onchange="renderGrid()"><option value="">All types</option></select>
+    <select id="sizeFilter" onchange="renderGrid()"><option value="">All sizes</option></select>
+    <span id="stats"></span>
+  </div>
+
+  <div class="export-bar">
+    <span>Export:</span>
+    <button class="btn-sm" onclick="exportCSV()">CSV</button>
+  </div>
+
+  <div class="grid" id="grid">
+    <div class="skeleton skeleton-card"></div>
+    <div class="skeleton skeleton-card"></div>
+    <div class="skeleton skeleton-card"></div>
+  </div>
 </div>
 
 <!-- Undo bar -->
 <div id="undoBar">
-  <span id="undoMsg">Action undone</span>
+  <span id="undoMsg"></span>
   <button onclick="doUndo()">Undo</button>
   <button class="undo-close" onclick="hideUndo()">✕</button>
 </div>
@@ -271,6 +350,21 @@ header .sub { font-size: .72rem; color: #666; font-family: 'IBM Plex Mono', mono
   </div>
 </div>
 
+<!-- Confirm modal -->
+<div class="confirm-overlay" id="confirmModal" style="display:none">
+  <div class="confirm-box">
+    <div class="confirm-header">
+      <span class="confirm-icon" id="confirmIcon">⚠️</span>
+      <span class="confirm-title" id="confirmTitle">Are you sure?</span>
+    </div>
+    <div class="confirm-body" id="confirmBody"></div>
+    <div class="confirm-footer">
+      <button class="btn-secondary" onclick="confirmResolve(false)">Cancel</button>
+      <button class="btn-confirm-ok" id="confirmOkBtn" onclick="confirmResolve(true)">Confirm</button>
+    </div>
+  </div>
+</div>
+
 <datalist id="typesList"></datalist>
 
 <script>
@@ -284,53 +378,153 @@ let undoStack = [];
 let undoTimer = null;
 let dragItemId = null;
 let dragSourceBoxId = null;
-
-
-// ── Custom confirm dialog ──
-let confirmResolve = () => {};
-function showConfirm({ title, body, okLabel = 'Confirm', okClass = 'danger', icon = '⚠️' }) {
-  return new Promise(resolve => {
-    document.getElementById('confirmTitle').textContent = title;
-    document.getElementById('confirmBody').textContent = body;
-    document.getElementById('confirmIcon').textContent = icon;
-    const btn = document.getElementById('confirmOkBtn');
-    btn.textContent = okLabel;
-    btn.className = 'btn-confirm-ok ' + okClass;
-    document.getElementById('confirmModal').style.display = 'flex';
-    confirmResolve = (val) => {
-      document.getElementById('confirmModal').style.display = 'none';
-      resolve(val);
-    };
-  });
-}
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') {
-    closeModal();
-    confirmResolve(false);
-  }
-});
+let localOp = false;
+let currentUser = null;
 
 // ── Dark mode ──
 function toggleDark() {
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
-  localStorage.setItem('theme', isDark ? 'light' : 'dark');
-  document.getElementById('darkToggle').textContent = isDark ? '🌙' : '☀️';
+  const next = isDark ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('theme', next);
+  const icon = next === 'dark' ? '☀️' : '🌙';
+  const d = document.getElementById('darkToggle');
+  const a = document.getElementById('authDarkBtn');
+  if (d) d.textContent = icon;
+  if (a) a.textContent = icon;
 }
 (function initTheme() {
   const saved = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
   document.documentElement.setAttribute('data-theme', saved);
-  document.addEventListener('DOMContentLoaded', () => {
-    const btn = document.getElementById('darkToggle');
-    if (btn) btn.textContent = saved === 'dark' ? '☀️' : '🌙';
+  const icon = saved === 'dark' ? '☀️' : '🌙';
+  window.addEventListener('DOMContentLoaded', () => {
+    const d = document.getElementById('darkToggle');
+    const a = document.getElementById('authDarkBtn');
+    if (d) d.textContent = icon;
+    if (a) a.textContent = icon;
   });
 })();
+
+// ── Auth UI ──
+let authMode = 'login';
+function switchTab(mode) {
+  authMode = mode;
+  document.getElementById('tabLogin').classList.toggle('active', mode === 'login');
+  document.getElementById('tabSignup').classList.toggle('active', mode === 'signup');
+  document.getElementById('confirmPasswordField').style.display = mode === 'signup' ? 'flex' : 'none';
+  document.getElementById('authSubmitBtn').textContent = mode === 'login' ? 'Sign In' : 'Create Account';
+  document.getElementById('authNote').textContent = mode === 'login'
+    ? 'Shared catalogue — all signed-in users see the same data.'
+    : 'Your account will have access to the shared storeroom catalogue.';
+  clearAuthMessages();
+  document.getElementById('authPassword').value = '';
+  document.getElementById('authConfirmPassword').value = '';
+}
+
+function showAuthError(msg) {
+  const el = document.getElementById('authError');
+  el.textContent = msg; el.style.display = 'block';
+  document.getElementById('authSuccess').style.display = 'none';
+}
+function showAuthSuccess(msg) {
+  const el = document.getElementById('authSuccess');
+  el.textContent = msg; el.style.display = 'block';
+  document.getElementById('authError').style.display = 'none';
+}
+function clearAuthMessages() {
+  document.getElementById('authError').style.display = 'none';
+  document.getElementById('authSuccess').style.display = 'none';
+}
+
+async function handleAuth() {
+  const email = document.getElementById('authEmail').value.trim();
+  const password = document.getElementById('authPassword').value;
+  const confirmPassword = document.getElementById('authConfirmPassword').value;
+  const btn = document.getElementById('authSubmitBtn');
+
+  clearAuthMessages();
+  if (!email || !password) { showAuthError('Please enter your email and password.'); return; }
+  if (authMode === 'signup') {
+    if (password.length < 6) { showAuthError('Password must be at least 6 characters.'); return; }
+    if (password !== confirmPassword) { showAuthError('Passwords do not match.'); return; }
+  }
+
+  btn.disabled = true;
+  btn.textContent = authMode === 'login' ? 'Signing in…' : 'Creating account…';
+
+  try {
+    if (authMode === 'login') {
+      const { data, error } = await db.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      onSignedIn(data.user);
+    } else {
+      const { data, error } = await db.auth.signUp({ email, password });
+      if (error) throw error;
+      if (data.user && data.session) {
+        onSignedIn(data.user);
+      } else {
+        showAuthSuccess('✓ Account created! Check your email to confirm, then sign in.');
+        switchTab('login');
+      }
+    }
+  } catch (err) {
+    showAuthError(err.message || 'Something went wrong. Please try again.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = authMode === 'login' ? 'Sign In' : 'Create Account';
+  }
+}
+
+function onSignedIn(user) {
+  currentUser = user;
+  document.getElementById('authScreen').style.display = 'none';
+  document.getElementById('appScreen').style.display = 'block';
+  const chip = document.getElementById('userChip');
+  chip.textContent = user.email;
+  chip.title = user.email;
+  initApp();
+}
+
+async function signOut() {
+  const ok = await showConfirm({
+    title: 'Sign Out',
+    body: 'Are you sure you want to sign out?',
+    okLabel: 'Sign Out',
+    okClass: 'danger',
+    icon: '👋'
+  });
+  if (!ok) return;
+  await db.auth.signOut();
+  currentUser = null;
+  catalogue = [];
+  document.getElementById('appScreen').style.display = 'none';
+  document.getElementById('authScreen').style.display = 'flex';
+  document.getElementById('authEmail').value = '';
+  document.getElementById('authPassword').value = '';
+  clearAuthMessages();
+  hideUndo();
+}
+
+// ── Check existing session on load ──
+async function checkSession() {
+  const { data: { session } } = await db.auth.getSession();
+  if (session?.user) {
+    onSignedIn(session.user);
+  } else {
+    document.getElementById('authScreen').style.display = 'flex';
+  }
+}
+
+// ── App init ──
+function initApp() {
+  loadAll();
+  setupRealtime();
+}
 
 // ── Sync badge ──
 function setSyncBadge(state, text) {
   const el = document.getElementById('syncBadge');
-  el.className = 'sync-badge ' + state;
-  el.textContent = text;
+  if (el) { el.className = 'sync-badge ' + state; el.textContent = text; }
 }
 
 // ── Load ──
@@ -342,7 +536,7 @@ async function loadAll() {
     const { data: items, error: e2 } = await db.from('box_items').select('*').order('created_at');
     if (e2) throw e2;
     catalogue = boxes.map(box => ({ ...box, items: items.filter(i => i.box_id === box.id) }));
-    setSyncBadge('ok', '✓ synced');
+    setSyncBadge('ok', '✓ live');
     renderGrid();
   } catch (err) {
     setSyncBadge('error', '✕ offline');
@@ -350,21 +544,53 @@ async function loadAll() {
   }
 }
 
-// ── Undo system ──
-function pushUndo(msg, fn) {
-  undoStack.push({ msg, fn });
-  showUndo(msg);
+// ── Realtime ──
+function setupRealtime() {
+  db.channel('catalogue-changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'boxes' },     () => { if (!localOp) loadAll(); })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'box_items' }, () => { if (!localOp) loadAll(); })
+    .subscribe(status => {
+      if (status === 'SUBSCRIBED')   setSyncBadge('ok',    '✓ live');
+      if (status === 'CHANNEL_ERROR') setSyncBadge('error', '✕ disconnected');
+      if (status === 'CLOSED')        setSyncBadge('busy',  '⟳ reconnecting');
+    });
 }
+
+function wrapLocal(fn) {
+  return async (...args) => {
+    localOp = true;
+    await fn(...args);
+    setTimeout(() => { localOp = false; }, 1000);
+  };
+}
+
+// ── Confirm dialog ──
+let confirmResolve = () => {};
+function showConfirm({ title, body, okLabel = 'Confirm', okClass = 'danger', icon = '⚠️' }) {
+  return new Promise(resolve => {
+    document.getElementById('confirmTitle').textContent = title;
+    document.getElementById('confirmBody').textContent = body;
+    document.getElementById('confirmIcon').textContent = icon;
+    const btn = document.getElementById('confirmOkBtn');
+    btn.textContent = okLabel;
+    btn.className = 'btn-confirm-ok ' + okClass;
+    document.getElementById('confirmModal').style.display = 'flex';
+    confirmResolve = val => {
+      document.getElementById('confirmModal').style.display = 'none';
+      resolve(val);
+    };
+  });
+}
+
+// ── Undo ──
+function pushUndo(msg, fn) { undoStack.push({ msg, fn }); showUndo(msg); }
 function showUndo(msg) {
   clearTimeout(undoTimer);
-  const bar = document.getElementById('undoBar');
   document.getElementById('undoMsg').textContent = msg;
-  bar.style.display = 'flex';
+  document.getElementById('undoBar').style.display = 'flex';
   undoTimer = setTimeout(hideUndo, 6000);
 }
-function hideUndo() {
-  document.getElementById('undoBar').style.display = 'none';
-}
+function hideUndo() { document.getElementById('undoBar').style.display = 'none'; }
 async function doUndo() {
   if (!undoStack.length) return;
   const { fn } = undoStack.pop();
@@ -374,7 +600,7 @@ async function doUndo() {
   await loadAll();
 }
 
-// ── Modal ──
+// ── Box modal ──
 function openAddBoxModal() {
   editingBoxId = null;
   document.getElementById('modalTitle').textContent = 'NEW BOX';
@@ -400,39 +626,31 @@ async function saveBox() {
   if (!label) { document.getElementById('boxLabelInput').focus(); return; }
   const note = document.getElementById('boxNoteInput').value.trim();
   const btn = document.getElementById('saveBoxBtn');
-  btn.disabled = true; btn.textContent = 'Saving…';
-  setSyncBadge('busy', '⟳ saving');
-  // Confirm if editing existing box
+
   if (editingBoxId) {
     const existing = catalogue.find(b => b.id === editingBoxId);
-    const ok = await showConfirm({
-      title: 'Save Box Changes',
-      body: `Rename "${existing.label}" to "${label}"?`,
-      okLabel: 'Save Changes',
-      okClass: 'safe',
-      icon: '✏️'
-    });
-    if (!ok) { btn.disabled = false; btn.textContent = 'Save Box'; return; }
+    const ok = await showConfirm({ title: 'Save Box Changes', body: `Rename "${existing.label}" to "${label}"?`, okLabel: 'Save Changes', okClass: 'safe', icon: '✏️' });
+    if (!ok) return;
   }
+
+  btn.disabled = true; btn.textContent = 'Saving…';
+  setSyncBadge('busy', '⟳ saving');
   try {
     if (editingBoxId) {
       const old = catalogue.find(b => b.id === editingBoxId);
-      const oldLabel = old.label, oldNote = old.note;
-      const { error } = await db.from('boxes').update({ label, note }).eq('id', editingBoxId);
+      const oldLabel = old.label, oldNote = old.note, bid = editingBoxId;
+      const { error } = await db.from('boxes').update({ label, note }).eq('id', bid);
       if (error) throw error;
-      const bid = editingBoxId;
-      pushUndo(`Renamed box to "${label}"`, async () => {
-        await db.from('boxes').update({ label: oldLabel, note: oldNote }).eq('id', bid);
-      });
+      pushUndo(`Renamed box to "${label}"`, async () => { await db.from('boxes').update({ label: oldLabel, note: oldNote }).eq('id', bid); });
     } else {
       const { data, error } = await db.from('boxes').insert({ label, note }).select().single();
       if (error) throw error;
-      pushUndo(`Added box "${label}"`, async () => {
-        await db.from('boxes').delete().eq('id', data.id);
-      });
+      pushUndo(`Added box "${label}"`, async () => { await db.from('boxes').delete().eq('id', data.id); });
     }
     closeModal();
+    localOp = true;
     await loadAll();
+    setTimeout(() => { localOp = false; }, 1000);
   } catch (err) {
     setSyncBadge('error', '✕ error');
     alert('Error saving box: ' + err.message);
@@ -443,13 +661,7 @@ async function saveBox() {
 
 async function deleteBox(id) {
   const box = catalogue.find(b => b.id === id);
-  const ok = await showConfirm({
-    title: 'Delete Box',
-    body: `Delete "${box.label}" and all ${box.items.length} item(s) inside? This cannot be undone without using Undo.`,
-    okLabel: 'Delete Box',
-    okClass: 'danger',
-    icon: '🗑️'
-  });
+  const ok = await showConfirm({ title: 'Delete Box', body: `Delete "${box.label}" and all ${box.items.length} item(s)? This can be undone with Undo.`, okLabel: 'Delete Box', okClass: 'danger', icon: '🗑️' });
   if (!ok) return;
   const snapshot = { box: { label: box.label, note: box.note }, items: box.items };
   setSyncBadge('busy', '⟳ deleting');
@@ -457,52 +669,46 @@ async function deleteBox(id) {
   if (error) { setSyncBadge('error', '✕ error'); alert(error.message); return; }
   pushUndo(`Deleted box "${box.label}"`, async () => {
     const { data: nb } = await db.from('boxes').insert({ label: snapshot.box.label, note: snapshot.box.note }).select().single();
-    if (snapshot.items.length) {
-      await db.from('box_items').insert(snapshot.items.map(i => ({ box_id: nb.id, type: i.type, size: i.size, qty: i.qty })));
-    }
+    if (snapshot.items.length) await db.from('box_items').insert(snapshot.items.map(i => ({ box_id: nb.id, type: i.type, size: i.size, qty: i.qty })));
   });
+  localOp = true;
   await loadAll();
+  setTimeout(() => { localOp = false; }, 1000);
 }
 
-// ── Add item ──
+// ── Items ──
 async function addItem(boxId) {
   const typeEl = document.getElementById('type_' + boxId);
   const sizeEl = document.getElementById('size_' + boxId);
   const qtyEl  = document.getElementById('qty_'  + boxId);
-  const type = typeEl.value.trim();
-  const size = sizeEl.value.trim();
-  const qty  = parseInt(qtyEl.value) || 1;
+  const type = typeEl.value.trim(), size = sizeEl.value.trim(), qty = parseInt(qtyEl.value) || 1;
   if (!type) { typeEl.focus(); return; }
   setSyncBadge('busy', '⟳ saving');
   const { data, error } = await db.from('box_items').insert({ box_id: boxId, type, size, qty }).select().single();
   if (error) { setSyncBadge('error', '✕ error'); alert(error.message); return; }
   typeEl.value = ''; sizeEl.value = ''; qtyEl.value = '1';
-  pushUndo(`Added "${type}"`, async () => {
-    await db.from('box_items').delete().eq('id', data.id);
-  });
+  pushUndo(`Added "${type}"`, async () => { await db.from('box_items').delete().eq('id', data.id); });
+  localOp = true;
   await loadAll();
+  setTimeout(() => { localOp = false; }, 1000);
   setTimeout(() => { const el = document.getElementById('type_' + boxId); if (el) el.focus(); }, 50);
 }
 
-// ── Edit item inline ──
 function startEditItem(itemId, boxId) {
   const item = catalogue.find(b => b.id === boxId)?.items.find(i => i.id === itemId);
   if (!item) return;
   const row = document.getElementById('itemrow_' + itemId);
   if (!row) return;
-  row.outerHTML = `
-    <div class="item-edit-row" id="itemrow_${itemId}">
-      <span></span>
-      <input type="text" id="etype_${itemId}" value="${esc(item.type)}" placeholder="Type" list="typesList">
-      <input type="text" id="esize_${itemId}" value="${esc(item.size||'')}" placeholder="Size" style="width:70px">
-      <input type="number" id="eqty_${itemId}" class="qty-input" value="${item.qty}" min="1" style="width:52px">
-      <button class="btn-save-item" onclick="saveEditItem('${itemId}','${boxId}')">✓</button>
-      <button class="btn-cancel-item" onclick="cancelEditItem('${itemId}','${boxId}')">✕</button>
-    </div>`;
+  row.outerHTML = `<div class="item-edit-row" id="itemrow_${itemId}">
+    <span></span>
+    <input type="text" id="etype_${itemId}" value="${esc(item.type)}" placeholder="Type" list="typesList">
+    <input type="text" id="esize_${itemId}" value="${esc(item.size||'')}" placeholder="Size" style="width:70px">
+    <input type="number" id="eqty_${itemId}" class="qty-input" value="${item.qty}" min="1" style="width:52px">
+    <button class="btn-save-item" onclick="saveEditItem('${itemId}','${boxId}')">✓</button>
+    <button class="btn-cancel-item" onclick="renderGrid()">✕</button>
+  </div>`;
   document.getElementById('etype_' + itemId)?.focus();
 }
-
-function cancelEditItem(itemId, boxId) { renderGrid(); }
 
 async function saveEditItem(itemId, boxId) {
   const type = document.getElementById('etype_' + itemId)?.value.trim();
@@ -511,82 +717,63 @@ async function saveEditItem(itemId, boxId) {
   if (!type) return;
   const old = catalogue.find(b => b.id === boxId)?.items.find(i => i.id === itemId);
   const oldSnap = { type: old.type, size: old.size, qty: old.qty };
-  const ok = await showConfirm({
-    title: 'Save Changes',
-    body: `Update "${oldSnap.type}" → "${type}", size: ${size||'—'}, qty: ${qty}?`,
-    okLabel: 'Save Changes',
-    okClass: 'safe',
-    icon: '✏️'
-  });
+  const ok = await showConfirm({ title: 'Save Changes', body: `Update "${oldSnap.type}" → "${type}", size: ${size||'—'}, qty: ×${qty}?`, okLabel: 'Save Changes', okClass: 'safe', icon: '✏️' });
   if (!ok) return;
   setSyncBadge('busy', '⟳ saving');
   const { error } = await db.from('box_items').update({ type, size, qty }).eq('id', itemId);
   if (error) { setSyncBadge('error', '✕ error'); alert(error.message); return; }
-  pushUndo(`Edited "${type}"`, async () => {
-    await db.from('box_items').update(oldSnap).eq('id', itemId);
-  });
+  pushUndo(`Edited "${type}"`, async () => { await db.from('box_items').update(oldSnap).eq('id', itemId); });
+  localOp = true;
   await loadAll();
+  setTimeout(() => { localOp = false; }, 1000);
 }
 
 async function deleteItem(itemId, boxId) {
   const item = catalogue.find(b => b.id === boxId)?.items.find(i => i.id === itemId);
   const snap = { ...item };
-  const ok = await showConfirm({
-    title: 'Delete Item',
-    body: `Remove "${item.type}" (${item.size || 'no size'}, ×${item.qty}) from this box?`,
-    okLabel: 'Delete Item',
-    okClass: 'danger',
-    icon: '🗑️'
-  });
+  const ok = await showConfirm({ title: 'Delete Item', body: `Remove "${item.type}" (${item.size||'no size'}, ×${item.qty})?`, okLabel: 'Delete Item', okClass: 'danger', icon: '🗑️' });
   if (!ok) return;
   setSyncBadge('busy', '⟳ deleting');
   const { error } = await db.from('box_items').delete().eq('id', itemId);
   if (error) { setSyncBadge('error', '✕ error'); alert(error.message); return; }
-  pushUndo(`Deleted "${snap.type}"`, async () => {
-    await db.from('box_items').insert({ box_id: snap.box_id, type: snap.type, size: snap.size, qty: snap.qty });
-  });
+  pushUndo(`Deleted "${snap.type}"`, async () => { await db.from('box_items').insert({ box_id: snap.box_id, type: snap.type, size: snap.size, qty: snap.qty }); });
+  localOp = true;
   await loadAll();
+  setTimeout(() => { localOp = false; }, 1000);
 }
 
-// ── Drag & Drop ──
+// ── Drag & drop ──
 function onItemDragStart(e, itemId, boxId) {
-  dragItemId = itemId;
-  dragSourceBoxId = boxId;
+  dragItemId = itemId; dragSourceBoxId = boxId;
   e.dataTransfer.effectAllowed = 'move';
   setTimeout(() => document.getElementById('itemrow_' + itemId)?.classList.add('dragging'), 0);
 }
-function onItemDragEnd(e) {
+function onItemDragEnd() {
   document.querySelectorAll('.item-row.dragging').forEach(el => el.classList.remove('dragging'));
   document.querySelectorAll('.box-card.drag-over').forEach(el => el.classList.remove('drag-over'));
 }
 function onBoxDragOver(e, boxId) {
-  if (!dragItemId) return;
-  e.preventDefault();
-  e.dataTransfer.dropEffect = 'move';
+  if (!dragItemId) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move';
   document.querySelectorAll('.box-card.drag-over').forEach(el => el.classList.remove('drag-over'));
   document.getElementById('boxcard_' + boxId)?.classList.add('drag-over');
 }
-function onBoxDragLeave(e, boxId) {
-  document.getElementById('boxcard_' + boxId)?.classList.remove('drag-over');
-}
+function onBoxDragLeave(e, boxId) { document.getElementById('boxcard_' + boxId)?.classList.remove('drag-over'); }
 async function onBoxDrop(e, targetBoxId) {
   e.preventDefault();
   document.querySelectorAll('.box-card.drag-over').forEach(el => el.classList.remove('drag-over'));
   if (!dragItemId || targetBoxId === dragSourceBoxId) return;
   const item = catalogue.find(b => b.id === dragSourceBoxId)?.items.find(i => i.id === dragItemId);
   const srcBox = catalogue.find(b => b.id === dragSourceBoxId);
-  const tgtBox = catalogue.find(b => b.id === targetBoxId);
+  const oldBoxId = dragSourceBoxId, movedId = dragItemId;
   if (!item) return;
-  const oldBoxId = dragSourceBoxId;
-  const movedId = dragItemId;
   setSyncBadge('busy', '⟳ moving');
   const { error } = await db.from('box_items').update({ box_id: targetBoxId }).eq('id', dragItemId);
   if (error) { setSyncBadge('error', '✕ error'); alert(error.message); return; }
-  pushUndo(`Moved "${item.type}" → ${srcBox?.label}`, async () => {
-    await db.from('box_items').update({ box_id: oldBoxId }).eq('id', movedId);
-  });
+  pushUndo(`Moved "${item.type}" → ${srcBox?.label}`, async () => { await db.from('box_items').update({ box_id: oldBoxId }).eq('id', movedId); });
   dragItemId = null; dragSourceBoxId = null;
+  localOp = true;
   await loadAll();
+  setTimeout(() => { localOp = false; }, 1000);
 }
 
 // ── Render ──
@@ -594,18 +781,16 @@ function getAllTypes() { const s = new Set(); catalogue.forEach(b => b.items.for
 function getAllSizes() { const s = new Set(); catalogue.forEach(b => b.items.forEach(i => { if(i.size) s.add(i.size); })); return [...s].sort(); }
 
 function renderGrid() {
-  const q  = document.getElementById('searchInput').value.trim().toLowerCase();
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
   const tf = document.getElementById('typeFilter').value.toLowerCase();
   const sf = document.getElementById('sizeFilter').value.toLowerCase();
 
-  const typeFilter = document.getElementById('typeFilter');
-  const sizeFilter = document.getElementById('sizeFilter');
+  const typeFilter = document.getElementById('typeFilter'), sizeFilter = document.getElementById('sizeFilter');
   const pt = typeFilter.value, ps = sizeFilter.value;
   typeFilter.innerHTML = '<option value="">All types</option>';
   getAllTypes().forEach(t => { const o = document.createElement('option'); o.value=t; o.textContent=t; if(t===pt) o.selected=true; typeFilter.appendChild(o); });
   sizeFilter.innerHTML = '<option value="">All sizes</option>';
   getAllSizes().forEach(s => { const o = document.createElement('option'); o.value=s; o.textContent=s; if(s===ps) o.selected=true; sizeFilter.appendChild(o); });
-
   document.getElementById('typesList').innerHTML = getAllTypes().map(t=>`<option value="${esc(t)}">`).join('');
 
   let boxes = catalogue.filter(box => {
@@ -622,7 +807,7 @@ function renderGrid() {
 
   const grid = document.getElementById('grid');
   if (boxes.length === 0) {
-    grid.innerHTML = `<div class="empty-state"><div class="big">📦</div><p>${catalogue.length===0?'No boxes yet. Add your first box to get started.':'No boxes match your search.'}</p>${catalogue.length===0?`<button class="btn-primary" onclick="openAddBoxModal()">+ Add First Box</button>`:''}</div>`;
+    grid.innerHTML = `<div class="empty-state"><div class="big">📦</div><p>${catalogue.length===0?'No boxes yet. Add your first box.':'No boxes match your search.'}</p>${catalogue.length===0?`<button class="btn-primary" onclick="openAddBoxModal()">+ Add First Box</button>`:''}</div>`;
     return;
   }
 
@@ -630,16 +815,15 @@ function renderGrid() {
     const itemRows = box.items.length === 0
       ? `<p class="empty-items">No items — add one below.</p>`
       : box.items.map(item => `
-        <div class="item-row" id="itemrow_${item.id}"
-          draggable="true"
+        <div class="item-row" id="itemrow_${item.id}" draggable="true"
           ondragstart="onItemDragStart(event,'${item.id}','${box.id}')"
           ondragend="onItemDragEnd(event)">
-          <span class="drag-handle" title="Drag to move to another box">⠿</span>
+          <span class="drag-handle">⠿</span>
           <span class="item-type-display" title="${esc(item.type)}">${esc(item.type)}</span>
           <span class="item-size-badge">${esc(item.size||'—')}</span>
           <span class="item-qty-display">×${item.qty}</span>
-          <button class="btn-edit-item" title="Edit item" onclick="startEditItem('${item.id}','${box.id}')">✎</button>
-          <button class="btn-del-item"  title="Delete item" onclick="deleteItem('${item.id}','${box.id}')">✕</button>
+          <button class="btn-edit-item" onclick="startEditItem('${item.id}','${box.id}')">✎</button>
+          <button class="btn-del-item"  onclick="deleteItem('${item.id}','${box.id}')">✕</button>
         </div>`).join('');
 
     return `<div class="box-card" id="boxcard_${box.id}"
@@ -652,8 +836,8 @@ function renderGrid() {
           ${box.note ? `<div class="box-note">${esc(box.note)}</div>` : ''}
         </div>
         <div class="card-actions">
-          <button class="btn-icon" onclick="openEditBoxModal('${box.id}')" title="Edit box">✎</button>
-          <button class="btn-icon danger" onclick="deleteBox('${box.id}')" title="Delete box">🗑</button>
+          <button class="btn-icon" onclick="openEditBoxModal('${box.id}')">✎</button>
+          <button class="btn-icon danger" onclick="deleteBox('${box.id}')">🗑</button>
         </div>
       </div>
       <div class="items-list">${itemRows}</div>
@@ -676,71 +860,17 @@ function exportCSV() {
     else box.items.forEach(i => rows.push([box.label, box.note||'', i.type, i.size||'', i.qty]));
   });
   const csv = rows.map(r => r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
-  a.download = 'storeroom.csv'; a.click();
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download='storeroom.csv'; a.click();
 }
 
-document.addEventListener('keydown', e => { if (e.key==='Escape') closeModal(); });
+// Enter key on auth form
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeModal(); confirmResolve(false); }
+  if (e.key === 'Enter' && document.getElementById('authScreen').style.display !== 'none') handleAuth();
+});
 
-// Set dark mode icon on load
-(function() {
-  const t = document.documentElement.getAttribute('data-theme');
-  const btn = document.getElementById('darkToggle');
-  if (btn) btn.textContent = t === 'dark' ? '☀️' : '🌙';
-})();
-
-loadAll();
-
-// ── Realtime sync ──
-// Ignore updates triggered by this tab to avoid double-reloads
-let localOp = false;
-
-function wrapLocal(fn) {
-  return async (...args) => {
-    localOp = true;
-    await fn(...args);
-    setTimeout(() => { localOp = false; }, 1000);
-  };
-}
-
-// Wrap all mutating functions so we can flag local ops
-const _addItem     = addItem;     addItem     = wrapLocal(_addItem);
-const _saveBox     = saveBox;     saveBox     = wrapLocal(_saveBox);
-const _deleteBox   = deleteBox;   deleteBox   = wrapLocal(_deleteBox);
-const _deleteItem  = deleteItem;  deleteItem  = wrapLocal(_deleteItem);
-const _saveEditItem = saveEditItem; saveEditItem = wrapLocal(_saveEditItem);
-const _onBoxDrop   = onBoxDrop;   onBoxDrop   = wrapLocal(_onBoxDrop);
-
-db.channel('catalogue-changes')
-  .on('postgres_changes', { event: '*', schema: 'public', table: 'boxes' },     () => { if (!localOp) loadAll(); })
-  .on('postgres_changes', { event: '*', schema: 'public', table: 'box_items' }, () => { if (!localOp) loadAll(); })
-  .subscribe((status) => {
-    if (status === 'SUBSCRIBED') {
-      setSyncBadge('ok', '✓ live');
-    } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-      setSyncBadge('error', '✕ disconnected');
-    } else if (status === 'CLOSED') {
-      setSyncBadge('busy', '⟳ reconnecting');
-    }
-  });
-
+// ── Boot ──
+checkSession();
 </script>
-
-<!-- Confirm modal -->
-<div class="confirm-overlay" id="confirmModal" style="display:none">
-  <div class="confirm-box">
-    <div class="confirm-header">
-      <span class="confirm-icon" id="confirmIcon">⚠️</span>
-      <span class="confirm-title" id="confirmTitle">Are you sure?</span>
-    </div>
-    <div class="confirm-body" id="confirmBody"></div>
-    <div class="confirm-footer">
-      <button class="btn-secondary" onclick="confirmResolve(false)">Cancel</button>
-      <button class="btn-confirm-ok" id="confirmOkBtn" onclick="confirmResolve(true)">Confirm</button>
-    </div>
-  </div>
-</div>
-
 </body>
 </html>
