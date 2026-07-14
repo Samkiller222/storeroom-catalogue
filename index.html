@@ -295,6 +295,21 @@ header .sub { font-size: .72rem; color: #666; font-family: 'IBM Plex Mono', mono
 
 .import-footer { padding: 14px 18px; border-top: 1px solid var(--rule); display: flex; gap: 8px; justify-content: flex-end; flex-shrink: 0; }
 
+
+/* ── Box drag & drop reorder ── */
+.grid { user-select: none; }
+.box-card { transition: box-shadow .15s, border-color .15s, opacity .15s, transform .15s; }
+.box-card.box-dragging { opacity: .35; transform: scale(.97); }
+.box-card.box-drag-over-above { border-top: 3px solid var(--amber); margin-top: -1px; }
+.box-card.box-drag-over-below { border-bottom: 3px solid var(--amber); margin-bottom: -1px; }
+.card-drag-handle {
+  cursor: grab; color: var(--rule); font-size: .85rem;
+  padding: 0 6px 0 0; line-height: 1; user-select: none;
+  transition: color .12s; flex-shrink: 0; align-self: center;
+}
+.box-card:hover .card-drag-handle { color: var(--ink-muted); }
+.card-drag-handle:active { cursor: grabbing; }
+
 </style>
 </head>
 <body>
@@ -785,38 +800,17 @@ async function deleteItem(itemId, boxId) {
   setTimeout(() => { localOp = false; }, 1000);
 }
 
-// ── Drag & drop ──
+// ── Item drag & drop ──
 function onItemDragStart(e, itemId, boxId) {
   dragItemId = itemId; dragSourceBoxId = boxId;
   e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', 'item:' + itemId);
   setTimeout(() => document.getElementById('itemrow_' + itemId)?.classList.add('dragging'), 0);
 }
 function onItemDragEnd() {
   document.querySelectorAll('.item-row.dragging').forEach(el => el.classList.remove('dragging'));
   document.querySelectorAll('.box-card.drag-over').forEach(el => el.classList.remove('drag-over'));
-}
-function onBoxDragOver(e, boxId) {
-  if (!dragItemId) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move';
-  document.querySelectorAll('.box-card.drag-over').forEach(el => el.classList.remove('drag-over'));
-  document.getElementById('boxcard_' + boxId)?.classList.add('drag-over');
-}
-function onBoxDragLeave(e, boxId) { document.getElementById('boxcard_' + boxId)?.classList.remove('drag-over'); }
-async function onBoxDrop(e, targetBoxId) {
-  e.preventDefault();
-  document.querySelectorAll('.box-card.drag-over').forEach(el => el.classList.remove('drag-over'));
-  if (!dragItemId || targetBoxId === dragSourceBoxId) return;
-  const item = catalogue.find(b => b.id === dragSourceBoxId)?.items.find(i => i.id === dragItemId);
-  const srcBox = catalogue.find(b => b.id === dragSourceBoxId);
-  const oldBoxId = dragSourceBoxId, movedId = dragItemId;
-  if (!item) return;
-  setSyncBadge('busy', '⟳ moving');
-  const { error } = await db.from('box_items').update({ box_id: targetBoxId }).eq('id', dragItemId);
-  if (error) { setSyncBadge('error', '✕ error'); alert(error.message); return; }
-  pushUndo(`Moved "${item.type}" → ${srcBox?.label}`, async () => { await db.from('box_items').update({ box_id: oldBoxId }).eq('id', movedId); });
   dragItemId = null; dragSourceBoxId = null;
-  localOp = true;
-  await loadAll();
-  setTimeout(() => { localOp = false; }, 1000);
 }
 
 // ── Render ──
@@ -836,7 +830,7 @@ function renderGrid() {
   getAllSizes().forEach(s => { const o = document.createElement('option'); o.value=s; o.textContent=s; if(s===ps) o.selected=true; sizeFilter.appendChild(o); });
   document.getElementById('typesList').innerHTML = getAllTypes().map(t=>`<option value="${esc(t)}">`).join('');
 
-  let boxes = catalogue.filter(box => {
+  let boxes = applyBoxOrder(catalogue).filter(box => {
     const ml = box.label.toLowerCase().includes(q);
     const mi = box.items.some(i => i.type.toLowerCase().includes(q) || (i.size||'').toLowerCase().includes(q));
     if (q && !ml && !mi) return false;
@@ -870,10 +864,14 @@ function renderGrid() {
         </div>`).join('');
 
     return `<div class="box-card" id="boxcard_${box.id}"
+        draggable="true"
+        ondragstart="onBoxDragStart(event,'${box.id}')"
+        ondragend="onBoxDragEnd(event,'${box.id}')"
         ondragover="onBoxDragOver(event,'${box.id}')"
         ondragleave="onBoxDragLeave(event,'${box.id}')"
         ondrop="onBoxDrop(event,'${box.id}')">
       <div class="card-header">
+        <span class="card-drag-handle" title="Drag to reorder">⠿⠿</span>
         <div style="flex:1;min-width:0">
           <div class="box-id">${esc(box.label)}</div>
           ${box.note ? `<div class="box-note">${esc(box.note)}</div>` : ''}
@@ -1117,6 +1115,150 @@ function downloadTemplate() {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Storeroom');
   XLSX.writeFile(wb, 'storeroom_template.xlsx');
+}
+
+
+// ── Box reorder drag & drop ──
+let boxDraggingId = null;
+let boxDragOverId = null;
+
+// Persist box order in localStorage (array of box IDs in display order)
+function getBoxOrder() {
+  try { return JSON.parse(localStorage.getItem('box_order') || '[]'); } catch { return []; }
+}
+function saveBoxOrder(ids) {
+  localStorage.setItem('box_order', JSON.stringify(ids));
+}
+function applyBoxOrder(boxes) {
+  const order = getBoxOrder();
+  if (!order.length) return boxes;
+  const indexed = new Map(boxes.map(b => [b.id, b]));
+  const sorted = order.filter(id => indexed.has(id)).map(id => indexed.get(id));
+  // Append any boxes not yet in the saved order
+  boxes.forEach(b => { if (!order.includes(b.id)) sorted.push(b); });
+  return sorted;
+}
+function recordBoxOrder() {
+  const cards = document.querySelectorAll('.box-card[id^="boxcard_"]');
+  const ids = [...cards].map(el => el.id.replace('boxcard_', ''));
+  saveBoxOrder(ids);
+}
+
+function onBoxDragStart(e, boxId) {
+  // Only treat as box-reorder if drag started on card-drag-handle or card-header
+  // (item drags set dragItemId; if that's set, this is an item drag not a box drag)
+  if (dragItemId) return;
+  boxDraggingId = boxId;
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', 'box:' + boxId);
+  setTimeout(() => document.getElementById('boxcard_' + boxId)?.classList.add('box-dragging'), 0);
+}
+
+function onBoxDragEnd(e, boxId) {
+  document.querySelectorAll('.box-card.box-dragging').forEach(el => el.classList.remove('box-dragging'));
+  document.querySelectorAll('.box-card.box-drag-over-above, .box-card.box-drag-over-below')
+    .forEach(el => { el.classList.remove('box-drag-over-above'); el.classList.remove('box-drag-over-below'); });
+  boxDraggingId = null;
+  boxDragOverId = null;
+}
+
+function onBoxDragOver(e, boxId) {
+  // Item being dragged over a box — existing handler
+  if (dragItemId) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    document.querySelectorAll('.box-card.drag-over').forEach(el => el.classList.remove('drag-over'));
+    document.getElementById('boxcard_' + boxId)?.classList.add('drag-over');
+    return;
+  }
+  // Box reorder
+  if (!boxDraggingId || boxDraggingId === boxId) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+
+  const card = document.getElementById('boxcard_' + boxId);
+  if (!card) return;
+
+  // Determine if hovering top or bottom half
+  const rect = card.getBoundingClientRect();
+  const midY = rect.top + rect.height / 2;
+  const isAbove = e.clientY < midY;
+
+  document.querySelectorAll('.box-card.box-drag-over-above, .box-card.box-drag-over-below')
+    .forEach(el => { el.classList.remove('box-drag-over-above'); el.classList.remove('box-drag-over-below'); });
+
+  card.classList.add(isAbove ? 'box-drag-over-above' : 'box-drag-over-below');
+  boxDragOverId = { id: boxId, above: isAbove };
+}
+
+function onBoxDragLeave(e, boxId) {
+  if (dragItemId) {
+    document.getElementById('boxcard_' + boxId)?.classList.remove('drag-over');
+    return;
+  }
+  const card = document.getElementById('boxcard_' + boxId);
+  if (!card) return;
+  // Only remove if leaving the card entirely (not just moving to a child)
+  const rect = card.getBoundingClientRect();
+  if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
+    card.classList.remove('box-drag-over-above');
+    card.classList.remove('box-drag-over-below');
+  }
+}
+
+async function onBoxDrop(e, targetBoxId) {
+  e.preventDefault();
+
+  // Item drop (existing logic)
+  if (dragItemId) {
+    document.querySelectorAll('.box-card.drag-over').forEach(el => el.classList.remove('drag-over'));
+    if (dragItemId && targetBoxId !== dragSourceBoxId) {
+      const item = catalogue.find(b => b.id === dragSourceBoxId)?.items.find(i => i.id === dragItemId);
+      const srcBox = catalogue.find(b => b.id === dragSourceBoxId);
+      const oldBoxId = dragSourceBoxId, movedId = dragItemId;
+      if (!item) return;
+      setSyncBadge('busy', '⟳ moving');
+      const { error } = await db.from('box_items').update({ box_id: targetBoxId }).eq('id', dragItemId);
+      if (error) { setSyncBadge('error', '✕ error'); alert(error.message); return; }
+      pushUndo(`Moved "${item.type}" → ${srcBox?.label}`, async () => { await db.from('box_items').update({ box_id: oldBoxId }).eq('id', movedId); });
+      dragItemId = null; dragSourceBoxId = null;
+      localOp = true; await loadAll(); setTimeout(() => { localOp = false; }, 1000);
+    }
+    return;
+  }
+
+  // Box reorder drop
+  document.querySelectorAll('.box-card.box-drag-over-above, .box-card.box-drag-over-below')
+    .forEach(el => { el.classList.remove('box-drag-over-above'); el.classList.remove('box-drag-over-below'); });
+
+  if (!boxDraggingId || !boxDragOverId || boxDraggingId === targetBoxId) {
+    boxDraggingId = null; boxDragOverId = null; return;
+  }
+
+  // Reorder in DOM immediately (optimistic)
+  const grid = document.getElementById('grid');
+  const dragCard = document.getElementById('boxcard_' + boxDraggingId);
+  const targetCard = document.getElementById('boxcard_' + targetBoxId);
+  if (!dragCard || !targetCard) return;
+
+  if (boxDragOverId.above) {
+    grid.insertBefore(dragCard, targetCard);
+  } else {
+    grid.insertBefore(dragCard, targetCard.nextSibling);
+  }
+
+  // Persist new order
+  recordBoxOrder();
+
+  // Also reorder in catalogue array to match
+  const order = getBoxOrder();
+  catalogue.sort((a, b) => {
+    const ai = order.indexOf(a.id), bi = order.indexOf(b.id);
+    if (ai === -1) return 1; if (bi === -1) return -1;
+    return ai - bi;
+  });
+
+  boxDraggingId = null; boxDragOverId = null;
 }
 
 // ── Boot ──
