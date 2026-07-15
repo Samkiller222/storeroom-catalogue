@@ -739,7 +739,7 @@ async function addItem(boxId) {
   const typeEl = document.getElementById('type_' + boxId);
   const sizeEl = document.getElementById('size_' + boxId);
   const qtyEl  = document.getElementById('qty_'  + boxId);
-  const type = typeEl.value.trim(), size = sizeEl.value.trim(), qty = parseInt(qtyEl.value) || 1;
+  const type = typeEl.value.trim(), size = sizeEl.value.trim(), qty = parseInt(qtyEl.value) || 0;
   if (!type) { typeEl.focus(); return; }
   setSyncBadge('busy', '⟳ saving');
   const { data, error } = await db.from('box_items').insert({ box_id: boxId, type, size, qty }).select().single();
@@ -761,7 +761,7 @@ function startEditItem(itemId, boxId) {
     <span></span>
     <input type="text" id="etype_${itemId}" value="${esc(item.type)}" placeholder="Type" list="typesList">
     <input type="text" id="esize_${itemId}" value="${esc(item.size||'')}" placeholder="Size" style="width:70px">
-    <input type="number" id="eqty_${itemId}" class="qty-input" value="${item.qty}" min="1" style="width:52px">
+    <input type="number" id="eqty_${itemId}" class="qty-input" value="${item.qty}" min="0" style="width:52px">
     <button class="btn-save-item" onclick="saveEditItem('${itemId}','${boxId}')">✓</button>
     <button class="btn-cancel-item" onclick="renderGrid()">✕</button>
   </div>`;
@@ -771,7 +771,7 @@ function startEditItem(itemId, boxId) {
 async function saveEditItem(itemId, boxId) {
   const type = document.getElementById('etype_' + itemId)?.value.trim();
   const size = document.getElementById('esize_' + itemId)?.value.trim();
-  const qty  = parseInt(document.getElementById('eqty_'  + itemId)?.value) || 1;
+  const qty  = parseInt(document.getElementById('eqty_'  + itemId)?.value) || 0;
   if (!type) return;
   const old = catalogue.find(b => b.id === boxId)?.items.find(i => i.id === itemId);
   const oldSnap = { type: old.type, size: old.size, qty: old.qty };
@@ -885,7 +885,7 @@ function renderGrid() {
       <div class="add-item-row">
         <div class="fi type-fi"><label>Type</label><input type="text" id="type_${box.id}" placeholder="e.g. T-shirts" list="typesList" onkeydown="if(event.key==='Enter')addItem('${box.id}')"></div>
         <div class="fi size-fi"><label>Size</label><input type="text" id="size_${box.id}" placeholder="M / 32W…" onkeydown="if(event.key==='Enter')addItem('${box.id}')"></div>
-        <div class="fi qty-fi"><label>Qty</label><input type="number" id="qty_${box.id}" value="1" min="1" onkeydown="if(event.key==='Enter')addItem('${box.id}')"></div>
+        <div class="fi qty-fi"><label>Qty</label><input type="number" id="qty_${box.id}" value="1" min="0" onkeydown="if(event.key==='Enter')addItem('${box.id}')"></div>
         <button class="btn-add-item" onclick="addItem('${box.id}')">Add</button>
       </div>
     </div>`;
