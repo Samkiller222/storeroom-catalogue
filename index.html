@@ -832,8 +832,9 @@ function renderGrid() {
 
   let boxes = applyBoxOrder(catalogue).filter(box => {
     const ml = box.label.toLowerCase().includes(q);
+    const mn = (box.note||'').toLowerCase().includes(q);
     const mi = box.items.some(i => i.type.toLowerCase().includes(q) || (i.size||'').toLowerCase().includes(q));
-    if (q && !ml && !mi) return false;
+    if (q && !ml && !mn && !mi) return false;
     if (tf && !box.items.some(i => i.type.toLowerCase() === tf)) return false;
     if (sf && !box.items.some(i => (i.size||'').toLowerCase() === sf)) return false;
     return true;
