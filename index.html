@@ -309,6 +309,9 @@ header .sub { font-size: .72rem; color: #666; font-family: 'IBM Plex Mono', mono
 }
 .box-card:hover .card-drag-handle { color: var(--ink-muted); }
 .card-drag-handle:active { cursor: grabbing; }
+.btn-move { padding: 3px 6px; }
+.btn-move:disabled { opacity: .3; cursor: default; }
+.btn-move:disabled:hover { border-color: var(--rule); color: var(--ink-muted); }
 
 </style>
 </head>
@@ -377,6 +380,10 @@ header .sub { font-size: .72rem; color: #666; font-family: 'IBM Plex Mono', mono
     <span>Import:</span>
     <button class="btn-sm" onclick="openImportModal()">📊 Import Excel</button>
     <button class="btn-sm" onclick="downloadTemplate()">⬇ Blank Template</button>
+    <span style="color:var(--rule)">|</span>
+    <span>Order:</span>
+    <button class="btn-sm" onclick="sortBoxes(1)" title="Sort boxes by label (BOX-2 before BOX-10)">A → Z</button>
+    <button class="btn-sm" onclick="sortBoxes(-1)" title="Sort boxes by label, reversed">Z → A</button>
   </div>
 
   <div class="grid" id="grid">
@@ -849,7 +856,7 @@ function renderGrid() {
     return;
   }
 
-  grid.innerHTML = boxes.map(box => {
+  grid.innerHTML = boxes.map((box, idx) => {
     const itemRows = box.items.length === 0
       ? `<p class="empty-items">No items — add one below.</p>`
       : box.items.map(item => `
@@ -878,6 +885,8 @@ function renderGrid() {
           ${box.note ? `<div class="box-note">${esc(box.note)}</div>` : ''}
         </div>
         <div class="card-actions">
+          <button class="btn-icon btn-move" onclick="moveBox('${box.id}',-1,event)" title="Move up (Shift+click: to top)" ${idx===0?'disabled':''}>▲</button>
+          <button class="btn-icon btn-move" onclick="moveBox('${box.id}',1,event)" title="Move down (Shift+click: to bottom)" ${idx===boxes.length-1?'disabled':''}>▼</button>
           <button class="btn-icon" onclick="openEditBoxModal('${box.id}')">✎</button>
           <button class="btn-icon danger" onclick="deleteBox('${box.id}')">🗑</button>
         </div>
@@ -1124,25 +1133,60 @@ let boxDraggingId = null;
 let boxDragOverId = null;
 
 // Persist box order in localStorage (array of box IDs in display order)
+// Order is local to this browser only — nothing is written to the database.
 function getBoxOrder() {
-  try { return JSON.parse(localStorage.getItem('box_order') || '[]'); } catch { return []; }
+  try { return JSON.parse(localStorage.getItem('box_order') || '[]').map(String); } catch { return []; }
 }
 function saveBoxOrder(ids) {
-  localStorage.setItem('box_order', JSON.stringify(ids));
+  try { localStorage.setItem('box_order', JSON.stringify(ids.map(String))); } catch {}
 }
 function applyBoxOrder(boxes) {
   const order = getBoxOrder();
   if (!order.length) return boxes;
-  const indexed = new Map(boxes.map(b => [b.id, b]));
+  const indexed = new Map(boxes.map(b => [String(b.id), b]));
   const sorted = order.filter(id => indexed.has(id)).map(id => indexed.get(id));
   // Append any boxes not yet in the saved order
-  boxes.forEach(b => { if (!order.includes(b.id)) sorted.push(b); });
+  const known = new Set(order);
+  boxes.forEach(b => { if (!known.has(String(b.id))) sorted.push(b); });
   return sorted;
 }
-function recordBoxOrder() {
-  const cards = document.querySelectorAll('.box-card[id^="boxcard_"]');
-  const ids = [...cards].map(el => el.id.replace('boxcard_', ''));
-  saveBoxOrder(ids);
+// Full ordered list of box IDs (includes boxes hidden by the current search/filter)
+function fullBoxOrder() {
+  return applyBoxOrder(catalogue).map(b => String(b.id));
+}
+// IDs of the cards currently shown, in display order
+function visibleBoxIds() {
+  return [...document.querySelectorAll('.box-card[id^="boxcard_"]')].map(el => el.id.replace('boxcard_', ''));
+}
+// Place movedId before/after targetId in the full order, then re-render
+function placeBox(movedId, targetId, after) {
+  movedId = String(movedId); targetId = String(targetId);
+  if (movedId === targetId) return;
+  const order = fullBoxOrder().filter(id => id !== movedId);
+  const t = order.indexOf(targetId);
+  if (t === -1) return;
+  order.splice(after ? t + 1 : t, 0, movedId);
+  saveBoxOrder(order);
+  renderGrid();
+}
+
+// ▲ / ▼ buttons — moves past the next visible box; Shift+click jumps to top/bottom
+function moveBox(boxId, dir, e) {
+  const vis = visibleBoxIds();
+  const i = vis.indexOf(String(boxId));
+  if (i === -1) return;
+  const j = e && e.shiftKey ? (dir < 0 ? 0 : vis.length - 1) : i + dir;
+  if (j < 0 || j >= vis.length || j === i) return;
+  placeBox(boxId, vis[j], dir > 0);
+  document.getElementById('boxcard_' + boxId)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
+// One-click sort by label, natural order (BOX-2 before BOX-10)
+function sortBoxes(dir) {
+  const sorted = [...catalogue].sort((a, b) =>
+    dir * String(a.label).localeCompare(String(b.label), undefined, { numeric: true, sensitivity: 'base' }));
+  saveBoxOrder(sorted.map(b => b.id));
+  renderGrid();
 }
 
 function onBoxDragStart(e, boxId) {
@@ -1236,30 +1280,9 @@ async function onBoxDrop(e, targetBoxId) {
     boxDraggingId = null; boxDragOverId = null; return;
   }
 
-  // Reorder in DOM immediately (optimistic)
-  const grid = document.getElementById('grid');
-  const dragCard = document.getElementById('boxcard_' + boxDraggingId);
-  const targetCard = document.getElementById('boxcard_' + targetBoxId);
-  if (!dragCard || !targetCard) return;
-
-  if (boxDragOverId.above) {
-    grid.insertBefore(dragCard, targetCard);
-  } else {
-    grid.insertBefore(dragCard, targetCard.nextSibling);
-  }
-
-  // Persist new order
-  recordBoxOrder();
-
-  // Also reorder in catalogue array to match
-  const order = getBoxOrder();
-  catalogue.sort((a, b) => {
-    const ai = order.indexOf(a.id), bi = order.indexOf(b.id);
-    if (ai === -1) return 1; if (bi === -1) return -1;
-    return ai - bi;
-  });
-
+  const movedId = boxDraggingId, above = boxDragOverId.above;
   boxDraggingId = null; boxDragOverId = null;
+  placeBox(movedId, targetBoxId, !above);
 }
 
 // ── Boot ──
