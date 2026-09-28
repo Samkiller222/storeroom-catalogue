@@ -382,8 +382,11 @@ header .sub { font-size: .72rem; color: #666; font-family: 'IBM Plex Mono', mono
     <button class="btn-sm" onclick="downloadTemplate()">⬇ Blank Template</button>
     <span style="color:var(--rule)">|</span>
     <span>Order:</span>
-    <button class="btn-sm" onclick="sortBoxes(1)" title="Sort boxes by label (BOX-2 before BOX-10)">A → Z</button>
-    <button class="btn-sm" onclick="sortBoxes(-1)" title="Sort boxes by label, reversed">Z → A</button>
+    <select id="orderMode" class="btn-sm" onchange="setOrderMode(this.value)" title="How boxes are ordered">
+      <option value="num-asc">Box number 1 → 99</option>
+      <option value="num-desc">Box number 99 → 1</option>
+      <option value="custom">Custom (drag / ▲▼)</option>
+    </select>
   </div>
 
   <div class="grid" id="grid">
@@ -1141,6 +1144,8 @@ function saveBoxOrder(ids) {
   try { localStorage.setItem('box_order', JSON.stringify(ids.map(String))); } catch {}
 }
 function applyBoxOrder(boxes) {
+  const mode = getOrderMode();
+  if (mode !== 'custom') return sortByNumber(boxes, mode === 'num-desc' ? -1 : 1);
   const order = getBoxOrder();
   if (!order.length) return boxes;
   const indexed = new Map(boxes.map(b => [String(b.id), b]));
@@ -1162,6 +1167,7 @@ function visibleBoxIds() {
 function placeBox(movedId, targetId, after) {
   movedId = String(movedId); targetId = String(targetId);
   if (movedId === targetId) return;
+  ensureCustomMode();
   const order = fullBoxOrder().filter(id => id !== movedId);
   const t = order.indexOf(targetId);
   if (t === -1) return;
@@ -1181,12 +1187,38 @@ function moveBox(boxId, dir, e) {
   document.getElementById('boxcard_' + boxId)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
 
-// One-click sort by label, natural order (BOX-2 before BOX-10)
-function sortBoxes(dir) {
-  const sorted = [...catalogue].sort((a, b) =>
-    dir * String(a.label).localeCompare(String(b.label), undefined, { numeric: true, sensitivity: 'base' }));
-  saveBoxOrder(sorted.map(b => b.id));
+// ── Numeric ordering ──
+// 'num-asc' / 'num-desc' keep boxes sorted by the number in their label ("Box 18" → 18),
+// including newly added boxes. 'custom' uses the drag / ▲▼ order.
+function getOrderMode() {
+  try { return localStorage.getItem('box_order_mode') || 'num-asc'; } catch { return 'num-asc'; }
+}
+function setOrderMode(mode) {
+  try { localStorage.setItem('box_order_mode', mode); } catch {}
+  const sel = document.getElementById('orderMode');
+  if (sel) sel.value = mode;
   renderGrid();
+}
+function boxNumber(label) {
+  const m = String(label).match(/\d+(\.\d+)?/);
+  return m ? parseFloat(m[0]) : null;
+}
+function sortByNumber(boxes, dir) {
+  return [...boxes].sort((a, b) => {
+    const na = boxNumber(a.label), nb = boxNumber(b.label);
+    if (na === null && nb !== null) return 1;   // unnumbered boxes always last
+    if (nb === null && na !== null) return -1;
+    if (na !== null && na !== nb) return dir * (na - nb);
+    return String(a.label).localeCompare(String(b.label), undefined, { numeric: true, sensitivity: 'base' });
+  });
+}
+// Manual moves switch to custom mode, starting from the order currently shown
+function ensureCustomMode() {
+  if (getOrderMode() === 'custom') return;
+  saveBoxOrder(applyBoxOrder(catalogue).map(b => b.id));
+  try { localStorage.setItem('box_order_mode', 'custom'); } catch {}
+  const sel = document.getElementById('orderMode');
+  if (sel) sel.value = 'custom';
 }
 
 function onBoxDragStart(e, boxId) {
@@ -1286,6 +1318,7 @@ async function onBoxDrop(e, targetBoxId) {
 }
 
 // ── Boot ──
+document.getElementById('orderMode').value = getOrderMode();
 checkSession();
 </script>
 
